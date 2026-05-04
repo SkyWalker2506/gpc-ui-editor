@@ -1357,12 +1357,35 @@
       b.addEventListener('click', () => resetProperty(b.dataset.reset));
     });
     document.getElementById('btn-save').addEventListener('click', saveStore);
-    document.getElementById('btn-publish').addEventListener('click', () => {
+    document.getElementById('btn-publish').addEventListener('click', async () => {
+      // 1. Always write localStorage first (preserves dev-tab fast-sync).
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
         localStorage.setItem('gpc_ui_overrides_updated_at', String(Date.now()));
-        flashToast('Published');
-      } catch (e) { console.error(e); flashToast('Publish failed'); }
+      } catch (_) {}
+
+      // 2. Prompt for password (deploys overrides to GitHub via /api).
+      const pw = prompt('Publish password (deploys UI overrides globally):');
+      if (!pw) { flashToast('Publish cancelled'); return; }
+
+      flashToast('Publishing...');
+      try {
+        const res = await fetch('/api/publish-ui-overrides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw, store })
+        });
+        let body = {};
+        try { body = await res.json(); } catch (_) {}
+        if (!res.ok || !body.ok) {
+          throw new Error(body.error || ('HTTP ' + res.status));
+        }
+        const sha = String(body.commitSha || '').slice(0, 7);
+        flashToast(sha ? ('Published — ' + sha) : 'Published');
+      } catch (e) {
+        console.error('[publish]', e);
+        flashToast('Publish failed: ' + (e.message || e));
+      }
     });
     document.getElementById('btn-export').addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
