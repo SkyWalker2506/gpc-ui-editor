@@ -49,9 +49,12 @@
       return;
     }
     const hadPosition = ('x' in merged) || ('y' in merged);
+    const hadSize = ('w' in merged) || ('h' in merged);
     const x = merged.x, y = merged.y;
+    const w = merged.w, h = merged.h;
     const stripped = { ...merged };
     delete stripped.x; delete stripped.y;
+    delete stripped.w; delete stripped.h;
     // Deep-clone layers so later edits to the source don't mutate clipboard.
     if (Array.isArray(stripped.layers)) {
       try { stripped.layers = JSON.parse(JSON.stringify(stripped.layers)); } catch (_) {}
@@ -59,8 +62,11 @@
     clipboard = {
       override: stripped,
       hadPosition,
+      hadSize,
       x: typeof x === 'number' ? x : null,
       y: typeof y === 'number' ? y : null,
+      w: typeof w === 'number' ? w : null,
+      h: typeof h === 'number' ? h : null,
       sourceId: el.id,
       sourceLabel: el.label,
       ts: Date.now()
@@ -81,6 +87,7 @@
       if (!confirm(el.label + ' already has overrides in this scope. Replace style with clipboard?')) return;
     }
     const includePos = !!document.getElementById('copy-include-pos')?.checked;
+    const includeSize = !!document.getElementById('copy-include-size')?.checked;
     // Merge: keep current x/y unless includePos. Replace everything else.
     const cur = getOverride(el.id, scopeCourseId) || {};
     const next = { ...cur, ...clipboard.override };
@@ -95,6 +102,13 @@
       // Preserve the target's current position explicitly.
       if (cur.x != null) next.x = cur.x; else delete next.x;
       if (cur.y != null) next.y = cur.y; else delete next.y;
+    }
+    if (includeSize) {
+      if (clipboard.w != null) next.w = clipboard.w;
+      if (clipboard.h != null) next.h = clipboard.h;
+    } else {
+      if (cur.w != null) next.w = cur.w; else delete next.w;
+      if (cur.h != null) next.h = cur.h; else delete next.h;
     }
     // Replace whole-store entry so removed keys (e.g. icon cleared in source)
     // also drop. patchOverride only merges — for paste we want full replace.
