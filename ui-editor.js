@@ -534,6 +534,23 @@
     renderLayersPanel();
   }
 
+  // §WYSIWYG§ Notify the embedded game iframe which UI element is currently
+  // selected so it can draw a highlight overlay on the matching button. The
+  // iframe runs the same-origin game with ?menuOnly=1&editorSync=1, listening
+  // for { type: 'ui-editor:select', target: <id> } messages.
+  function postSelectionToPreview() {
+    try {
+      const iframe = document.getElementById('ui-preview-iframe');
+      if (!iframe || !iframe.contentWindow) return;
+      iframe.contentWindow.postMessage(
+        selectedElementId
+          ? { type: 'ui-editor:select', target: selectedElementId }
+          : { type: 'ui-editor:clearSelect' },
+        location.origin
+      );
+    } catch (_) {}
+  }
+
   // ----- Render: preview canvas -----
   function drawPreviewBackdrop(ctx, screen) {
     if (screen.bg === 'menu') {
@@ -577,6 +594,30 @@
   }
 
   function renderPreview() {
+    // §WYSIWYG§ The center pane is now an <iframe> running the real game in
+    // ?menuOnly=1 mode — it picks up override changes via the existing
+    // localStorage 'storage' event listener already wired in game.js. The
+    // editor no longer maintains a simplified canvas mock. We still update
+    // the preview-info badge and broadcast selection to the iframe so it can
+    // draw a highlight overlay around the selected element.
+    postSelectionToPreview();
+    {
+      const _el0 = getElement(selectedElementId);
+      const _info0 = document.getElementById('preview-info');
+      if (_info0) {
+        if (_el0) {
+          const _p0 = effectiveProps(_el0);
+          _info0.textContent = `${_el0.label} · ${Math.round(_p0.x)},${Math.round(_p0.y)} · ${Math.round(_p0.w)}×${Math.round(_p0.h)}`;
+        } else {
+          _info0.textContent = '';
+        }
+      }
+    }
+    return;
+    // ↓ Legacy simplified canvas mock — preserved as dead code under early
+    // return so it can be revived if a fallback preview is needed. Original
+    // implementation drew a flat backdrop + element rects without sprites.
+    /* eslint-disable no-unreachable */
     const canvas = document.getElementById('preview');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -695,7 +736,12 @@
   // to resize (with optional aspect-ratio lock).
   let drag = null;
   function setupCanvasInteraction() {
+    // §WYSIWYG§ The center pane is now an <iframe>, not a canvas — there's
+    // nothing to drag on. v1 ships with numerical inputs + arrow keys for
+    // position editing; v2 may overlay drag handles on the iframe via
+    // postMessage. Bail out cleanly so the rest of the editor still works.
     const canvas = document.getElementById('preview');
+    if (!canvas) return;
     canvas.addEventListener('mousedown', (ev) => {
       // Start a drag transaction so the entire move/resize collapses into a
       // single undo entry instead of one per pixel of mouse movement.
@@ -1349,6 +1395,23 @@
     setupCanvasInteraction();
     setupIconPicker();
     bindLayerInspector();
+
+    // §WYSIWYG§ Hide the loading overlay once the embedded game has booted,
+    // and re-broadcast the current selection so the iframe highlights the
+    // active button right after first paint.
+    (function setupPreviewIframe() {
+      const iframe = document.getElementById('ui-preview-iframe');
+      const loading = document.getElementById('preview-loading');
+      if (!iframe) return;
+      const onReady = () => {
+        if (loading) loading.classList.add('hidden');
+        // Wait one tick so the game's message listener is wired up.
+        setTimeout(postSelectionToPreview, 250);
+      };
+      iframe.addEventListener('load', onReady);
+      // Safety: if 'load' has already fired (cached), still hide after 4s.
+      setTimeout(() => { if (loading) loading.classList.add('hidden'); }, 4000);
+    })();
 
     // Copy / Paste style buttons
     const cBtn = document.getElementById('btn-copy-style');
