@@ -1370,10 +1370,10 @@
 
       flashToast('Publishing...');
       try {
-        const res = await fetch('/api/publish-ui-overrides', {
+        const res = await fetch('/api/publish', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pw, store })
+          body: JSON.stringify({ kind: 'ui-overrides', password: pw, store })
         });
         let body = {};
         try { body = await res.json(); } catch (_) {}
