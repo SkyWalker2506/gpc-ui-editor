@@ -861,3 +861,20 @@
   }
   .d19-more-toggle:hover { background: var(--bg-hi); }
   .d19-more-toggle.is-open { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+  /* §KIND_PILL§ Inspector header tag — instantly tells the user what
+     kind of node they're editing (Button / Toggle / Image / Text / etc).
+     Avoids the 4-kinds-look-the-same confusion. */
+  .kind-pill {
+    display: inline-block;
+    padding: 2px 7px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    font: 800 9px Fredoka, sans-serif;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-right: 6px;
+    user-select: none;
+  }

@@ -1381,7 +1381,17 @@
     empty.style.display = 'none';
     body.style.display = '';
     const meta = document.getElementById('props-meta');
-    meta.textContent = `${el.label} · ${el.id}` + (scopeCourseId ? ` · scoped to Course ${scopeCourseId}` : '');
+    // Resolve effective kind (override → SCREENS default → 'leaf').
+    const _ovrK = (getOverride(el.id, '') || {}).kind;
+    const _kind = _ovrK || el.kind || 'leaf';
+    const _kindIcon = _kind === 'group' ? '▣'
+                    : _kind === 'button' ? '■'
+                    : _kind === 'toggle' ? '◉'
+                    : _kind === 'image' ? '🖼'
+                    : _kind === 'text' ? 'T'
+                    : _kind === 'empty' ? '□'
+                    : '·';
+    meta.innerHTML = `<span class="kind-pill" title="Node kind: ${_kind}">${_kindIcon} ${_kind.toUpperCase()}</span> <strong>${el.label}</strong> <span style="opacity:0.55">· ${el.id}</span>` + (scopeCourseId ? ` <span style="opacity:0.55">· Course ${scopeCourseId}</span>` : '');
     const props = effectiveProps(el);
     const setVal = (sel, v) => {
       const e = document.querySelector(sel);
