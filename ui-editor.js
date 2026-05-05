@@ -1920,13 +1920,21 @@
       ctx.restore();
     }
 
-    // Stage info text
+    // Stage info text — rendered in the toolbar above the iframe (NOT
+    // overlaid on the canvas, since that used to occlude the top-left UI
+    // like the coin chip when selected).
     const el = getElement(selectedElementId);
     const info = document.getElementById('preview-info');
-    if (el) {
-      const p = effectiveProps(el);
-      info.textContent = `${el.label} · ${Math.round(p.x)},${Math.round(p.y)} · ${Math.round(p.w)}×${Math.round(p.h)}`;
-    } else { info.textContent = ''; }
+    if (info) {
+      if (el) {
+        const p = effectiveProps(el);
+        info.textContent = `${el.label} · ${Math.round(p.x)},${Math.round(p.y)} · ${Math.round(p.w)}×${Math.round(p.h)}`;
+        info.classList.add('has-content');
+      } else {
+        info.textContent = '';
+        info.classList.remove('has-content');
+      }
+    }
   }
 
   function roundRect(ctx, x, y, w, h, r) {
