@@ -383,11 +383,26 @@
             { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 38, y: 0, w: 50, h: 38, fontSize: 16, color: '#2A1C0E' }
           ]
         },
-        { id: 'menu.soundToggle', label: 'Sound toggle', kind: 'button', action: 'toggle:sound',
+        // §D19_P6§ Migrated from kind:'button' (P5 bg+icon) to kind:'toggle'
+        // with on/off state-children. Pre-filled icons mirror the existing
+        // mute/unmute visual: ui-sound-on under .on, ui-sound-off under .off.
+        // The .on/.off entries themselves are kind:'empty' (transform-only)
+        // and host one image child each.
+        { id: 'menu.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
           defaults: { x: W - 46, y: 14, w: 32, h: 32 },
+          toggleStateKey: 'soundMuted',
           seedChildren: [
-            { suffix: 'bg',   kind: 'image', label: 'Sound bg',   background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
-            { suffix: 'icon', kind: 'image', label: 'Sound icon', background: 'ui-sound-on',     x: 4, y: 4, w: 24, h: 24 }
+            { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'on',  kind: 'empty', label: 'on',       x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [
+                { suffix: 'icon', kind: 'image', label: 'Sound on icon', background: 'ui-sound-on', x: 4, y: 4, w: 24, h: 24 }
+              ]
+            },
+            { suffix: 'off', kind: 'empty', label: 'off',      x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [
+                { suffix: 'icon', kind: 'image', label: 'Sound off icon', background: 'ui-sound-off', x: 4, y: 4, w: 24, h: 24 }
+              ]
+            }
           ]
         }
       ]
@@ -430,6 +445,62 @@
     let changed = false;
     for (const screen of SCREENS) {
       for (const el of screen.elements) {
+        // §D19_P6§ Toggle migration path (used by menu.soundToggle: P5→P6).
+        if (el.kind === 'toggle' && el.seedChildren) {
+          const parent = store[el.id] || {};
+          // Detect P5 shape: stored as kind:'button' with .icon child holding
+          // the sound on/off background. Capture the icon's current sprite
+          // (so a user-edited mute state survives) and re-decompose.
+          const isP5Shape = parent.kind === 'button' && store[el.id + '.icon'];
+          if (isP5Shape) {
+            // Capture user's prior icon background (probably ui-sound-on or
+            // ui-sound-off) so the corresponding state branch is pre-filled.
+            const priorIcon = (store[el.id + '.icon'] || {}).background || '';
+            const wasMuted  = priorIcon === 'ui-sound-off';
+            // Drop the P5 .icon entry; .bg stays (re-used by P6).
+            delete store[el.id + '.icon'];
+            changed = true;
+            // Convert parent to toggle.
+            const np = { ...parent, kind: 'toggle',
+                         toggleState: wasMuted ? 'on' : 'off',
+                         toggleStateKey: el.toggleStateKey || '' };
+            if (el.action) np.action = el.action;
+            store[el.id] = np;
+          }
+          if (!parent.kind || parent.kind !== 'toggle') {
+            const cur = store[el.id] || {};
+            store[el.id] = { ...cur, kind: 'toggle',
+                             toggleState: cur.toggleState || 'off',
+                             toggleStateKey: cur.toggleStateKey || el.toggleStateKey || '',
+                             action: cur.action || el.action || '' };
+            changed = true;
+          }
+          // Seed bg / on / off children (and any pre-filled grandchildren).
+          for (const sc of el.seedChildren) {
+            const cid = el.id + '.' + sc.suffix;
+            if (!store[cid]) {
+              const child = { kind: sc.kind, parentId: el.id, label: sc.label,
+                              x: sc.x, y: sc.y, w: sc.w, h: sc.h,
+                              _originX: sc.x, _originY: sc.y };
+              if (sc.kind === 'image' && sc.background) child.background = sc.background;
+              store[cid] = child;
+              changed = true;
+            }
+            if (Array.isArray(sc.grandchildren)) {
+              for (const gc of sc.grandchildren) {
+                const gid = cid + '.' + gc.suffix;
+                if (store[gid]) continue;
+                const gchild = { kind: gc.kind, parentId: cid, label: gc.label,
+                                 x: gc.x, y: gc.y, w: gc.w, h: gc.h,
+                                 _originX: gc.x, _originY: gc.y };
+                if (gc.kind === 'image' && gc.background) gchild.background = gc.background;
+                store[gid] = gchild;
+                changed = true;
+              }
+            }
+          }
+          continue;
+        }
         if (el.kind !== 'button' || !el.seedChildren) continue;
         // Detect a legacy override on the parent id (no kind, but has any of
         // background / icon / label). Decompose into bg/icon/text children
@@ -526,7 +597,12 @@
       let migrated = false;
       for (const k in store) {
         const v = store[k];
-        if (v && typeof v === 'object' && v.kind !== 'group' && Number.isFinite(Number(v.x)) && !Number.isFinite(Number(v.xRel))) {
+        // §D19_P6§ Skip group/empty containers AND children parented under a
+        // button/toggle/empty/group (their x/y is local, not screen-absolute).
+        const _par = v && v.parentId ? store[v.parentId] : null;
+        const _localChild = !!(_par && (_par.kind === 'button' || _par.kind === 'toggle' || _par.kind === 'empty' || _par.kind === 'group'));
+        const _isCnt = v && (v.kind === 'group' || v.kind === 'empty');
+        if (v && typeof v === 'object' && !_isCnt && !_localChild && Number.isFinite(Number(v.x)) && !Number.isFinite(Number(v.xRel))) {
           v.xRel = Number(v.x) - W / 2;
           migrated = true;
         }
@@ -585,8 +661,16 @@
     // game.js prefers xRel so live (wider W) stays centered.
     // §D19_P0§ Group nodes use absolute x/y as a bbox anchor (cascade math
     // expects raw x), so skip the xRel auto-sync for them.
-    const _isGroupEntry = (store[k] && store[k].kind === 'group');
-    if (patch && !_isGroupEntry && Number.isFinite(Number(patch.x)) && !('xRel' in patch)) {
+    // §D19_P6§ Skip xRel auto-sync for group/empty containers AND for any node
+    // that lives inside a button/toggle/empty parent (its x/y is local, not
+    // a screen-absolute that needs centering).
+    const _ent = store[k] || {};
+    const _isContainer = (_ent.kind === 'group' || _ent.kind === 'empty');
+    const _parId = _ent.parentId;
+    const _par = _parId ? store[_parId] : null;
+    const _isLocallyParented = !!(_par && (_par.kind === 'button' || _par.kind === 'toggle' || _par.kind === 'empty' || _par.kind === 'group'));
+    const _skipXRel = _isContainer || _isLocallyParented;
+    if (patch && !_skipXRel && Number.isFinite(Number(patch.x)) && !('xRel' in patch)) {
       patch = { ...patch, xRel: Number(patch.x) - W / 2 };
     }
     store[k] = { ...(store[k] || {}), ...patch };
@@ -798,7 +882,9 @@
   // Stable id for a new dynamic node. Scoped to the screen + kind so ids
   // don't leak across menu/play tabs and group/button/image/text spaces.
   // §D19_P4§ Generalised from `_newGroupId` to handle 4 dynamic kinds.
-  const DYNAMIC_KINDS = ['group', 'button', 'image', 'text'];
+  // §D19_P6§ Add `toggle` and `empty`. `group` retained for backwards compat
+  // but no longer creatable via toolbar — drag-drop nesting handles grouping.
+  const DYNAMIC_KINDS = ['group', 'button', 'image', 'text', 'toggle', 'empty'];
   function _newNodeId(kind) {
     const k = (DYNAMIC_KINDS.indexOf(kind) >= 0) ? kind : 'group';
     let i = 1;
@@ -947,11 +1033,17 @@
     renderElementList(); renderProps(); renderPreview();
   }
   // §D19_P4§ Kind-aware node defaults. group/button accept children; image/text are leafs.
+  // §D19_P6§ Added `toggle` (button-like, with on/off state children) and
+  // `empty` (pure transform container — no visual, no click). Group icon kept
+  // distinct (▣) so legacy entries are visually distinguishable from new
+  // `empty` containers (□).
   const NODE_KIND_DEFAULTS = {
     group:  { w: 200, h: 100, label: 'Group',  acceptsChildren: true,  ico: '▣' /* ▣ */ },
     button: { w: 120, h: 40,  label: 'Button', acceptsChildren: true,  ico: '■' /* ■ */, defaultAction: '' },
     image:  { w: 64,  h: 64,  label: 'Image',  acceptsChildren: false, ico: '🖼' /* 🖼 */, defaultBackground: '' },
-    text:   { w: 120, h: 24,  label: 'Text',   acceptsChildren: false, ico: 'T', defaultLabel: 'Text', defaultFontSize: 14 }
+    text:   { w: 120, h: 24,  label: 'Text',   acceptsChildren: false, ico: 'T', defaultLabel: 'Text', defaultFontSize: 14 },
+    toggle: { w: 120, h: 40,  label: 'Toggle', acceptsChildren: true,  ico: '◉' /* ◉ */ },
+    empty:  { w: 100, h: 60,  label: 'Empty',  acceptsChildren: true,  ico: '□' /* □ */ }
   };
   function nodeAcceptsChildren(id) {
     const v = store[id];
@@ -981,8 +1073,33 @@
       entry.label = def.defaultLabel;
       entry.fontSize = def.defaultFontSize;
     }
+    if (kind === 'toggle') {
+      // Default state = off. Persisted to runtime via __GPC_UI_TOGGLES.
+      entry.toggleState = 'off';
+      entry.toggleStateKey = '';
+    }
     if (parentId) entry.parentId = parentId;
     store[id] = entry;
+    // §D19_P6§ Toggle seeds three children: bg image (always rendered) +
+    // empty .on / .off state containers. User adds visuals inside on/off.
+    if (kind === 'toggle') {
+      const bgId  = id + '.bg';
+      const onId  = id + '.on';
+      const offId = id + '.off';
+      if (!store[bgId]) {
+        store[bgId] = { kind: 'image', parentId: id, label: (def.label + ' bg'),
+                        background: 'ui-button-paper',
+                        x: 0, y: 0, w: w, h: h, _originX: 0, _originY: 0 };
+      }
+      if (!store[onId]) {
+        store[onId] = { kind: 'empty', parentId: id, label: 'on',
+                        x: 0, y: 0, w: w, h: h, _originX: 0, _originY: 0 };
+      }
+      if (!store[offId]) {
+        store[offId] = { kind: 'empty', parentId: id, label: 'off',
+                         x: 0, y: 0, w: w, h: h, _originX: 0, _originY: 0 };
+      }
+    }
     if (undo) undo.recordBefore();
     markDirty();
     saveStoreSilent();
@@ -997,6 +1114,8 @@
   function createButtonNode() { createDynamicNode('button'); }
   function createImageNode()  { createDynamicNode('image'); }
   function createTextNode()   { createDynamicNode('text'); }
+  function createToggleNode() { createDynamicNode('toggle'); }
+  function createEmptyNode()  { createDynamicNode('empty'); }
 
   // Delete a dynamic-kind node: remove the entry; children re-parent to root.
   function deleteDynamicNode(id) {
@@ -1055,6 +1174,8 @@
       const isButton   = el.kind === 'button';
       const isImage    = el.kind === 'image';
       const isText     = el.kind === 'text';
+      const isToggle   = el.kind === 'toggle';
+      const isEmpty    = el.kind === 'empty';
       const isDynamic  = !!kindDef;
       const hasChildren = node.children.length > 0;
       const collapsed = isCollapsed(el.id);
@@ -1068,6 +1189,8 @@
         + (isButton ? ' is-button' : '')
         + (isImage  ? ' is-image'  : '')
         + (isText   ? ' is-text'   : '')
+        + (isToggle ? ' is-toggle' : '')
+        + (isEmpty  ? ' is-empty'  : '')
         + (descendantSet.has(el.id) ? ' descendant-of-selected' : '');
       item.dataset.nodeId = el.id;
       item.draggable = true;
@@ -1134,7 +1257,7 @@
         ev.preventDefault();
         const rect = item.getBoundingClientRect();
         const inMiddle = (ev.clientY > rect.top + rect.height * 0.25 && ev.clientY < rect.top + rect.height * 0.75);
-        const acceptsChildren = isGroup || isButton;
+        const acceptsChildren = isGroup || isButton || isToggle || isEmpty;
         if (inMiddle && !acceptsChildren) {
           // Reject — leaf-style node, can't host children.
           item.classList.add('drag-reject');
@@ -1162,7 +1285,7 @@
         item.classList.remove('drag-reject');
         if (rejected) return;
         if (!draggedId || draggedId === el.id) return;
-        const acceptsChildren = isGroup || isButton;
+        const acceptsChildren = isGroup || isButton || isToggle || isEmpty;
         if (intoZone && acceptsChildren) {
           reparentNode(draggedId, el.id);
         } else {
@@ -1310,7 +1433,7 @@
     const el = getElement(selectedElementId);
     if (!el) { if (panel) panel.remove(); return; }
     const k = el.kind || 'leaf';
-    if (k !== 'button' && k !== 'text') { if (panel) panel.remove(); return; }
+    if (k !== 'button' && k !== 'text' && k !== 'toggle') { if (panel) panel.remove(); return; }
     const ovr = store[selectedElementId] || {};
     if (!panel) {
       panel = document.createElement('div');
@@ -1335,6 +1458,40 @@
         const cur = store[selectedElementId] || {};
         const next = { ...cur, kind: 'button' };
         if (v) next.action = v; else delete next.action;
+        store[selectedElementId] = next;
+        markDirty(); saveStoreSilent();
+      });
+    } else if (k === 'toggle') {
+      // §D19_P6§ Toggle inspector: state radio (preview) + Bound state key.
+      const curState = (ovr.toggleState === 'on') ? 'on' : 'off';
+      const curKey = (typeof ovr.toggleStateKey === 'string') ? ovr.toggleStateKey : '';
+      panel.innerHTML = '<div class="group-title" title="On/off state — runtime persists this and renders the matching child branch">Toggle State</div>'
+        + '<div class="field-row"><label>State</label><div class="row-input-wrap" style="display:flex;gap:10px;align-items:center">'
+        + `<label style="display:flex;gap:4px;align-items:center;font-weight:normal"><input type="radio" name="d19p6-state" value="on"${curState==='on'?' checked':''}/> on</label>`
+        + `<label style="display:flex;gap:4px;align-items:center;font-weight:normal"><input type="radio" name="d19p6-state" value="off"${curState==='off'?' checked':''}/> off</label>`
+        + '</div></div>'
+        + '<div class="field-row"><label>State key</label><div class="row-input-wrap">'
+        + `<input type="text" id="d19p6-statekey" placeholder="e.g. soundMuted" value="${curKey.replace(/"/g,'&quot;')}"/>`
+        + '</div></div>'
+        + '<div class="hint" style="font-size:11px;opacity:0.75;background:#fef9e8;border-left:3px solid #d4a942;padding:6px 8px;margin-top:6px;border-radius:3px">'
+        + 'Add visuals under <b>On</b> / <b>Off</b> children. Only the matching state-branch renders at runtime.'
+        + '</div>';
+      panel.querySelectorAll('input[name="d19p6-state"]').forEach((rb) => {
+        rb.addEventListener('change', () => {
+          if (!rb.checked) return;
+          const v = rb.value === 'on' ? 'on' : 'off';
+          const cur = store[selectedElementId] || {};
+          store[selectedElementId] = { ...cur, kind: 'toggle', toggleState: v };
+          markDirty(); saveStore();
+          renderPreview();
+        });
+      });
+      const keyInp = panel.querySelector('#d19p6-statekey');
+      if (keyInp) keyInp.addEventListener('input', () => {
+        const v = String(keyInp.value || '').trim();
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur, kind: 'toggle' };
+        if (v) next.toggleStateKey = v; else delete next.toggleStateKey;
         store[selectedElementId] = next;
         markDirty(); saveStoreSilent();
       });
@@ -1392,7 +1549,9 @@
     setVis(labelRow, true); setVis(bgRow, true); setVis(iconRow, true);
     setVis(typoFold, true); setVis(cpStyleRow, true);
     setVis(layersSection, true);
-    if (k === 'group') {
+    if (k === 'group' || k === 'empty' || k === 'toggle') {
+      // §D19_P6§ Empty + toggle behave like group/button — invisible parents
+      // whose visuals come from nested children. Hide Style + Layers.
       setVis(styleGroup, false);
       setVis(layersSection, false);
     } else if (k === 'button') {
@@ -2505,6 +2664,8 @@
 
     // §D19_P0§ Hierarchy toolbar wiring.
     (function bindHierarchyToolbar() {
+      // §D19_P6§ +Group sunset from toolbar — grouping is drag-drop only now.
+      // Handler kept for backwards compat (button removed from HTML).
       const addG = document.getElementById('btn-add-group');
       if (addG) addG.addEventListener('click', createGroupNode);
       // §D19_P4§ Composable node toolbar buttons.
@@ -2514,6 +2675,11 @@
       if (addI) addI.addEventListener('click', createImageNode);
       const addT = document.getElementById('btn-add-text');
       if (addT) addT.addEventListener('click', createTextNode);
+      // §D19_P6§ +Toggle / +Empty toolbar buttons.
+      const addTg = document.getElementById('btn-add-toggle');
+      if (addTg) addTg.addEventListener('click', createToggleNode);
+      const addE = document.getElementById('btn-add-empty');
+      if (addE) addE.addEventListener('click', createEmptyNode);
       const reparentRoot = document.getElementById('btn-reparent-root');
       if (reparentRoot) reparentRoot.addEventListener('click', () => {
         if (selectedElementId) reparentNode(selectedElementId, null);
