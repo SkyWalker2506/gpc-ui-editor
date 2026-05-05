@@ -375,7 +375,7 @@
       let migrated = false;
       for (const k in store) {
         const v = store[k];
-        if (v && typeof v === 'object' && Number.isFinite(Number(v.x)) && !Number.isFinite(Number(v.xRel))) {
+        if (v && typeof v === 'object' && v.kind !== 'group' && Number.isFinite(Number(v.x)) && !Number.isFinite(Number(v.xRel))) {
           v.xRel = Number(v.x) - W / 2;
           migrated = true;
         }
@@ -432,7 +432,10 @@
     const k = keyFor(id, courseId);
     // Keep xRel in sync with x (design-W=680 anchored at canvas center).
     // game.js prefers xRel so live (wider W) stays centered.
-    if (patch && Number.isFinite(Number(patch.x)) && !('xRel' in patch)) {
+    // §D19_P0§ Group nodes use absolute x/y as a bbox anchor (cascade math
+    // expects raw x), so skip the xRel auto-sync for them.
+    const _isGroupEntry = (store[k] && store[k].kind === 'group');
+    if (patch && !_isGroupEntry && Number.isFinite(Number(patch.x)) && !('xRel' in patch)) {
       patch = { ...patch, xRel: Number(patch.x) - W / 2 };
     }
     store[k] = { ...(store[k] || {}), ...patch };
@@ -620,38 +623,326 @@
     } catch (_) {}
   }
 
-  // ----- Render: element list -----
+  // ----- §D19_P0§ Hierarchy helpers ---------------------------------------
+  // Tree state: parentId / childOrder / kind=group are stored ON the
+  // override entry itself (in `store`) so they're persisted alongside x/y/w/h
+  // edits. Group nodes are a regular store entry with kind:'group' — not in
+  // SCREENS at all. Below: helpers that bridge SCREENS' static elements with
+  // the dynamic group nodes.
+  const TREE_COLLAPSE_KEY = 'gpc_ui_tree_collapsed';
+  let _collapsedNodes = (function () {
+    try {
+      const raw = localStorage.getItem(TREE_COLLAPSE_KEY);
+      const obj = raw ? JSON.parse(raw) : {};
+      return (obj && typeof obj === 'object') ? obj : {};
+    } catch (_) { return {}; }
+  })();
+  function isCollapsed(id) { return !!_collapsedNodes[id]; }
+  function toggleCollapsed(id) {
+    if (_collapsedNodes[id]) delete _collapsedNodes[id];
+    else _collapsedNodes[id] = 1;
+    try { localStorage.setItem(TREE_COLLAPSE_KEY, JSON.stringify(_collapsedNodes)); } catch (_) {}
+  }
+
+  // Stable id for a new group node. Scoped to the screen so the same group
+  // ids don't leak across menu/play tabs.
+  function _newGroupId() {
+    let i = 1;
+    while (store[activeScreenId + '.group.' + i]) i++;
+    return activeScreenId + '.group.' + i;
+  }
+  // Return all group entries for the active screen as virtual "elements"
+  // matching the SCREENS shape (id, label, defaults). Read from store.
+  function getGroupNodes() {
+    const out = [];
+    const prefix = activeScreenId + '.group.';
+    for (const k of Object.keys(store)) {
+      // Skip per-course entries (those carry @N suffix); group base entry is
+      // global. The cascade applies the same parentId from the global entry
+      // whether the user moved it per-course or not.
+      if (k.indexOf('@') >= 0) continue;
+      const v = store[k];
+      if (!v || v.kind !== 'group') continue;
+      if (k.indexOf(prefix) !== 0) continue;
+      out.push({
+        id: k,
+        label: typeof v.label === 'string' && v.label ? v.label : ('Group ' + k.slice(prefix.length)),
+        kind: 'group',
+        defaults: {
+          x: Number.isFinite(Number(v._originX)) ? Number(v._originX) : (Number(v.x) || 0),
+          y: Number.isFinite(Number(v._originY)) ? Number(v._originY) : (Number(v.y) || 0),
+          w: Number(v.w) || 200,
+          h: Number(v.h) || 100
+        }
+      });
+    }
+    return out;
+  }
+  // Wrap getElement to also resolve group ids. Function declarations create
+  // mutable bindings even in strict mode, so reassignment is legal.
+  const _origGetElement_d19 = getElement;
+  // eslint-disable-next-line no-func-assign
+  getElement = function getElementWithGroups(id) {
+    const fromScreens = _origGetElement_d19(id);
+    if (fromScreens) return fromScreens;
+    const groups = getGroupNodes();
+    return groups.find((g) => g.id === id) || null;
+  };
+  // §D19_P0§ Build a hierarchy tree from the active screen's leaves + groups.
+  // Each node: { el, children: [...] }. Sorting: childOrder asc, then label.
+  function buildTree() {
+    const screen = getScreen();
+    const nodes = []
+      .concat(screen.elements.map((e) => ({ ...e, kind: 'leaf' })))
+      .concat(getGroupNodes());
+    const byId = {};
+    nodes.forEach((n) => { byId[n.id] = { el: n, children: [] }; });
+    const roots = [];
+    nodes.forEach((n) => {
+      const ovr = store[n.id] || {};
+      const pid = ovr.parentId;
+      if (pid && byId[pid]) byId[pid].children.push(byId[n.id]);
+      else roots.push(byId[n.id]);
+    });
+    function sortLevel(arr) {
+      arr.sort((a, b) => {
+        const ao = Number(((store[a.el.id] || {}).childOrder));
+        const bo = Number(((store[b.el.id] || {}).childOrder));
+        const aok = Number.isFinite(ao);
+        const bok = Number.isFinite(bo);
+        if (aok && bok && ao !== bo) return ao - bo;
+        if (aok && !bok) return -1;
+        if (!aok && bok) return 1;
+        return (a.el.label || '').localeCompare(b.el.label || '');
+      });
+      arr.forEach((n) => sortLevel(n.children));
+    }
+    sortLevel(roots);
+    return roots;
+  }
+
+  // Detect ancestry to prevent reparent cycles.
+  function _isAncestor(maybeAncestorId, descendantId) {
+    let cur = (store[descendantId] || {}).parentId;
+    let depth = 0;
+    while (cur && depth < 32) {
+      if (cur === maybeAncestorId) return true;
+      cur = (store[cur] || {}).parentId;
+      depth++;
+    }
+    return false;
+  }
+
+  // §D19_P0§ Reparent a node. newParentId='' means root. Writes through the
+  // global override key (no @course suffix) so cascade behaves consistently.
+  function reparentNode(nodeId, newParentId) {
+    if (!nodeId) return;
+    if (newParentId === nodeId) return;
+    if (newParentId && _isAncestor(nodeId, newParentId)) return; // cycle guard
+    const cur = store[nodeId] || {};
+    const next = { ...cur };
+    if (newParentId) next.parentId = newParentId;
+    else delete next.parentId;
+    if (Object.keys(next).length) store[nodeId] = next;
+    else delete store[nodeId];
+    if (undo) undo.recordBefore();
+    markDirty();
+    saveStoreSilent();
+    if (undo) undo.commit();
+    renderElementList(); renderProps(); renderPreview();
+  }
+  // Reorder among siblings: set childOrder so `nodeId` lands just before
+  // `siblingId` (or at end if siblingId is null).
+  function reorderSibling(nodeId, siblingId) {
+    if (!nodeId || nodeId === siblingId) return;
+    const cur = store[nodeId] || {};
+    const sib = siblingId ? (store[siblingId] || {}) : null;
+    let target;
+    if (sib && Number.isFinite(Number(sib.childOrder))) {
+      target = Number(sib.childOrder) - 0.5;
+    } else {
+      target = Date.now() / 1000;
+    }
+    const next = { ...cur, childOrder: target };
+    store[nodeId] = next;
+    if (undo) undo.recordBefore();
+    markDirty();
+    saveStoreSilent();
+    if (undo) undo.commit();
+    renderElementList(); renderProps(); renderPreview();
+  }
+  // Create a new group node at root (or under selection if it's a group).
+  function createGroupNode() {
+    const id = _newGroupId();
+    let parentId = null;
+    if (selectedElementId) {
+      const sel = store[selectedElementId];
+      if (sel && sel.kind === 'group') parentId = selectedElementId;
+    }
+    const x = 100, y = 100, w = 200, h = 100;
+    const entry = {
+      kind: 'group',
+      label: 'Group',
+      x, y, w, h,
+      _originX: x, _originY: y
+    };
+    if (parentId) entry.parentId = parentId;
+    store[id] = entry;
+    if (undo) undo.recordBefore();
+    markDirty();
+    saveStoreSilent();
+    if (undo) undo.commit();
+    selectedElementId = id;
+    selectedLayerId = null;
+    renderElementList(); renderProps(); renderPreview();
+    flashToast('Group created', 'success');
+  }
+  // Delete a group: remove the entry; children are re-parented to root.
+  function deleteGroupNode(id) {
+    if (!store[id] || store[id].kind !== 'group') return;
+    if (undo) undo.recordBefore();
+    delete store[id];
+    // Children: drop their parentId so they pop to root.
+    for (const k of Object.keys(store)) {
+      const v = store[k];
+      if (v && v.parentId === id) {
+        const nv = { ...v }; delete nv.parentId;
+        if (Object.keys(nv).length) store[k] = nv;
+        else delete store[k];
+      }
+    }
+    markDirty();
+    saveStoreSilent();
+    if (undo) undo.commit();
+    if (selectedElementId === id) selectedElementId = null;
+    renderElementList(); renderProps(); renderPreview();
+    flashToast('Group deleted', 'info');
+  }
+
+  // ----- Render: element list (now hierarchy tree) -----
   function renderElementList() {
     const root = document.getElementById('el-list');
     root.innerHTML = '';
     const screen = getScreen();
-    if (!screen.elements.length) {
+    if (!screen.elements.length && !getGroupNodes().length) {
       root.innerHTML = '<div class="empty-pane">No elements registered for this screen yet.</div>';
       return;
     }
-    for (const el of screen.elements) {
+    const tree = buildTree();
+    function renderNode(node, depth) {
+      const el = node.el;
+      const isGroup = el.kind === 'group';
+      const hasChildren = node.children.length > 0;
+      const collapsed = isCollapsed(el.id);
       const item = document.createElement('div');
-      // Compute which scopes have overrides (Global / C1..C5) and render
-      // small badges so the user can see at a glance where they've already
-      // diverged from in-code defaults.
       const scopes = scopesWithOverrides(el.id);
       const hasOvr = scopes.length > 0;
-      item.className = 'el-item' + (el.id === selectedElementId ? ' active' : '') + (hasOvr ? ' has-override' : '');
+      item.className = 'el-item'
+        + (el.id === selectedElementId ? ' active' : '')
+        + (hasOvr ? ' has-override' : '')
+        + (isGroup ? ' is-group' : '');
+      item.style.paddingLeft = (9 + depth * 12) + 'px';
+      item.dataset.nodeId = el.id;
+      item.draggable = true;
       const badges = scopes.map((s) => {
         const lbl = s === '' ? 'G' : ('C' + s);
         const cls = s === '' ? 'ovr-badge global' : 'ovr-badge';
         const title = s === '' ? 'Global override' : ('Course ' + s + ' override');
         return `<span class="${cls}" title="${title}">${lbl}</span>`;
       }).join('');
-      item.innerHTML = `<span>${el.label}</span><span class="meta">${el.id}</span>` +
-                      (badges ? `<span class="ovr-badges">${badges}</span>` : '');
-      item.addEventListener('click', () => {
+      const chevSlot = hasChildren
+        ? `<span class="tree-chev clickable" data-act="toggle">${collapsed ? '▸' : '▾'}</span>`
+        : `<span class="tree-chev"></span>`;
+      const labelText = isGroup ? (el.label + ' (group)') : el.label;
+      item.innerHTML = chevSlot
+        + `<span class="label">${labelText}</span>`
+        + `<span class="meta">${isGroup ? 'group' : el.id}</span>`
+        + (badges ? `<span class="ovr-badges">${badges}</span>` : '');
+      // Click handlers
+      item.addEventListener('click', (ev) => {
+        if (ev.target && ev.target.dataset && ev.target.dataset.act === 'toggle') {
+          toggleCollapsed(el.id);
+          renderElementList();
+          return;
+        }
         selectedElementId = el.id;
         selectedLayerId = null;
         renderElementList(); renderProps(); renderPreview();
       });
+      // Right-click: group context (delete group)
+      item.addEventListener('contextmenu', (ev) => {
+        if (!isGroup) return;
+        ev.preventDefault();
+        if (confirm('Delete group "' + el.label + '"? Children re-parent to root.')) {
+          deleteGroupNode(el.id);
+        }
+      });
+      // Drag-drop: drag a node onto another to reparent / reorder
+      item.addEventListener('dragstart', (ev) => {
+        ev.dataTransfer.effectAllowed = 'move';
+        ev.dataTransfer.setData('text/plain', el.id);
+      });
+      item.addEventListener('dragover', (ev) => {
+        ev.preventDefault();
+        const rect = item.getBoundingClientRect();
+        const intoZone = isGroup && (ev.clientY > rect.top + rect.height * 0.25 && ev.clientY < rect.top + rect.height * 0.75);
+        item.classList.toggle('drag-over-into', intoZone);
+        item.classList.toggle('drag-over', !intoZone);
+      });
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over');
+        item.classList.remove('drag-over-into');
+      });
+      item.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        const draggedId = ev.dataTransfer.getData('text/plain');
+        const intoZone = item.classList.contains('drag-over-into');
+        item.classList.remove('drag-over');
+        item.classList.remove('drag-over-into');
+        if (!draggedId || draggedId === el.id) return;
+        if (intoZone && isGroup) {
+          // Reparent into this group
+          reparentNode(draggedId, el.id);
+        } else {
+          // Reorder as sibling: same parent as `el`, place before it
+          const targetParent = (store[el.id] || {}).parentId || '';
+          const draggedParent = (store[draggedId] || {}).parentId || '';
+          if (targetParent !== draggedParent) {
+            reparentNode(draggedId, targetParent || null);
+          }
+          reorderSibling(draggedId, el.id);
+        }
+      });
       root.appendChild(item);
+      if (!collapsed) {
+        node.children.forEach((c) => renderNode(c, depth + 1));
+      }
     }
+    tree.forEach((n) => renderNode(n, 0));
+  }
+
+  // §D19_P0§ Render parent breadcrumb in the inspector.
+  function renderParentBreadcrumb() {
+    const node = document.getElementById('parent-breadcrumb');
+    if (!node) return;
+    const el = getElement(selectedElementId);
+    if (!el) { node.style.display = 'none'; node.innerHTML = ''; return; }
+    const ovr = store[selectedElementId] || {};
+    if (!ovr.parentId) { node.style.display = 'none'; node.innerHTML = ''; return; }
+    // Walk up to root, collect labels
+    const chain = [];
+    let cur = ovr.parentId, depth = 0;
+    while (cur && depth < 16) {
+      const p = getElement(cur);
+      chain.unshift(p ? p.label : cur);
+      cur = (store[cur] || {}).parentId;
+      depth++;
+    }
+    node.style.display = '';
+    node.innerHTML = `<span>Parent:</span> <span class="crumb">${chain.join(' › ')}</span>`
+      + `<button type="button" class="root-btn" data-act="reparent-root" title="Move to tree root">↩ root</button>`;
+    const btn = node.querySelector('[data-act="reparent-root"]');
+    if (btn) btn.addEventListener('click', () => reparentNode(selectedElementId, null));
   }
 
   // Return list of scope ids ('' = global, '1'..'5' = per-course) that have
@@ -732,6 +1023,8 @@
     renderLayersPanel();
     // §D19§ Re-evaluate per-section paste visibility (cheap; no-op if DOM unchanged).
     refreshClipboardUI();
+    // §D19_P0§ Refresh parent-chain breadcrumb in inspector.
+    renderParentBreadcrumb();
   }
 
   // §WYSIWYG§ Notify the embedded game iframe which UI element is currently
@@ -1652,6 +1945,16 @@
     setupCanvasInteraction();
     setupIconPicker();
     bindLayerInspector();
+
+    // §D19_P0§ Hierarchy toolbar wiring.
+    (function bindHierarchyToolbar() {
+      const addG = document.getElementById('btn-add-group');
+      if (addG) addG.addEventListener('click', createGroupNode);
+      const reparentRoot = document.getElementById('btn-reparent-root');
+      if (reparentRoot) reparentRoot.addEventListener('click', () => {
+        if (selectedElementId) reparentNode(selectedElementId, null);
+      });
+    })();
 
     // §WYSIWYG§ Hide the loading overlay once the embedded game has booted,
     // and re-broadcast the current selection so the iframe highlights the
