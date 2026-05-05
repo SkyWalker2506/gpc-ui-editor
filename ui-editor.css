@@ -224,9 +224,10 @@
   }
   .parent-breadcrumb .root-btn:hover { color: var(--accent); border-color: var(--accent); }
   /* §VIEWPORT§ Aspect-ratio comes from a CSS var the toolbar picker swaps.
-     Width stays bounded so the center column never elbows the side panels;
-     only the SHAPE of the frame changes between presets, not its on-screen
-     footprint. Default 16:9 ≈ typical desktop monitor. */
+     §ZOOM§ Frame width grows with --preview-scale so the iframe PHYSICALLY
+     enlarges (Unity Game window style — more on-screen real-estate, not
+     a CSS upscale of the same pixel grid). Game inside re-runs
+     resizeCanvas() with the larger viewport. */
   .preview-frame {
     background: #c5e0f4;
     border: 1px solid var(--line-strong);
@@ -234,7 +235,7 @@
     box-shadow: 0 12px 30px rgba(0,0,0,0.5);
     position: relative;
     overflow: hidden;
-    width: min(100%, 680px);
+    width: calc(680px * var(--preview-scale, 1));
     aspect-ratio: var(--preview-aspect, 16 / 9);
     margin: 0 auto;
   }
@@ -315,6 +316,17 @@
     align-self: center;
   }
   .preview-info.has-content { display: inline-flex; }
+  /* §ZOOM_BAR§ Dedicated top row above the viewport picker. Reads as
+     the most prominent control — designers reach for zoom often. */
+  .zoom-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 6px 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
   /* §ZOOM§ Unity Game-window-style zoom slider above the preview. */
   .preview-frame-wrap {
     width: 100%;
@@ -326,10 +338,8 @@
     padding: 16px;
   }
   .preview-frame-wrap .preview-frame {
-    transform: scale(var(--preview-scale, 1));
-    transform-origin: center center;
-    transition: transform 0.12s ease-out;
     flex: 0 0 auto;
+    transition: width 0.12s ease-out;
   }
   .zoom-pill {
     display: inline-flex;
