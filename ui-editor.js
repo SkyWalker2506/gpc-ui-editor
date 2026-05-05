@@ -345,42 +345,44 @@
         { id: 'menu.title',       label: 'GOLF! title',   kind: 'leaf', defaults: { x: W/2 - 112, y: 67, w: 224, h: 86 } },
         { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'leaf', defaults: { x: W/2 - 24,  y: 186, w: 48, h: 56 } },
         // Composable buttons — parent is invisible, children render.
+        // Centered icon+label group inside each button — matches the legacy
+        // drawButton layout (group.startX = btnW/2 - groupW/2, y centered).
         { id: 'menu.play',        label: 'PLAY button',   kind: 'button', action: 'goto:courses',
           defaults: { x: W/2 - 85, y: 260, w: 170, h: 46 },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'PLAY bg',   background: 'ui-button-paper', x: 0,  y: 0,  w: 170, h: 46 },
-            { suffix: 'icon', kind: 'image', label: 'PLAY icon', background: 'ui-play-icon',    x: 10, y: 9,  w: 28,  h: 28 },
-            { suffix: 'text', kind: 'text',  label: 'PLAY',      x: 50, y: 0, w: 110, h: 46, fontSize: 19, color: '#2A1C0E' }
+            { suffix: 'icon', kind: 'image', label: 'PLAY icon', background: 'ui-play-icon',    x: 42, y: 9,  w: 28,  h: 28 },
+            { suffix: 'text', kind: 'text',  label: 'PLAY',      x: 78, y: 0, w: 82,  h: 46, fontSize: 19, color: '#2A1C0E', textAlign: 'left' }
           ]
         },
         { id: 'menu.upgrades',    label: 'UPGRADES button', kind: 'button', action: 'goto:upgrades',
           defaults: { x: W/2 - 85, y: 330, w: 170, h: 38 },
           seedChildren: [
-            { suffix: 'bg',   kind: 'image', label: 'UPGRADES bg',   background: 'ui-button-paper',    x: 0,  y: 0, w: 170, h: 38 },
-            { suffix: 'icon', kind: 'image', label: 'UPGRADES icon', background: 'ui-upgrades-icon', x: 10, y: 7, w: 24,  h: 24 },
-            { suffix: 'text', kind: 'text',  label: 'UPGRADES',      x: 44, y: 0, w: 116, h: 38, fontSize: 14, color: '#2A1C0E' }
+            { suffix: 'bg',   kind: 'image', label: 'UPGRADES bg',   background: 'ui-button-paper',  x: 0,  y: 0, w: 170, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'UPGRADES icon', background: 'ui-upgrades-icon', x: 35, y: 8, w: 22,  h: 22 },
+            { suffix: 'text', kind: 'text',  label: 'UPGRADES',      x: 65, y: 0, w: 105, h: 38, fontSize: 14, color: '#2A1C0E', textAlign: 'left' }
           ]
         },
         { id: 'menu.shop',        label: 'SHOP button', kind: 'button', action: 'goto:shop',
           defaults: { x: W/2 - 85, y: 380, w: 170, h: 38 },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'SHOP bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 170, h: 38 },
-            { suffix: 'icon', kind: 'image', label: 'SHOP icon', background: 'ui-shop-icon',  x: 10, y: 7, w: 24,  h: 24 },
-            { suffix: 'text', kind: 'text',  label: 'SHOP',      x: 44, y: 0, w: 116, h: 38, fontSize: 14, color: '#2A1C0E' }
+            { suffix: 'icon', kind: 'image', label: 'SHOP icon', background: 'ui-shop-icon',    x: 55, y: 8, w: 22,  h: 22 },
+            { suffix: 'text', kind: 'text',  label: 'SHOP',      x: 85, y: 0, w: 85,  h: 38, fontSize: 14, color: '#2A1C0E', textAlign: 'left' }
           ]
         },
         { id: 'menu.coinChip',    label: 'Coin chip', kind: 'button', action: '',
           defaults: { x: W - 242, y: 14, w: 92, h: 38 },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
-            { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 38, y: 0, w: 50, h: 38, fontSize: 16, color: '#2A1C0E' }
+            { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 38, y: 0, w: 46, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
           ]
         },
         { id: 'menu.gemChip',     label: 'Gem chip', kind: 'button', action: '',
           defaults: { x: W - 144, y: 14, w: 92, h: 38 },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
-            { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 38, y: 0, w: 50, h: 38, fontSize: 16, color: '#2A1C0E' }
+            { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 38, y: 0, w: 46, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
           ]
         },
         // §D19_P6§ Migrated from kind:'button' (P5 bg+icon) to kind:'toggle'
@@ -1392,6 +1394,35 @@
     setVal('input[data-prop="w"]', Math.round(props.w));
     setVal('input[data-prop="h"]', Math.round(props.h));
     setVal('input[data-prop="label"]', typeof props.label === 'string' ? props.label : '');
+    // Dynamic placeholder: when the field is empty, hint the in-code default
+    // for THIS specific element (not a generic "(default)") — e.g. menu.play.text
+    // hints "PLAY", menu.coinChip.text hints "0". Resolved from SCREENS seed
+    // when this element is a child suffix, otherwise from the element's own
+    // default label. Empty string means no hint.
+    (function () {
+      const el = getElement(selectedElementId);
+      const inp = document.querySelector('input[data-prop="label"]');
+      if (!inp) return;
+      let hint = '';
+      if (el) {
+        // Match against parent's seedChildren when id ends in .text/.bg/.icon/etc.
+        const dot = (el.id || '').lastIndexOf('.');
+        if (dot > 0) {
+          const parentId = el.id.slice(0, dot);
+          const suffix = el.id.slice(dot + 1);
+          for (const s of SCREENS) {
+            const parent = s.elements.find(e => e.id === parentId);
+            if (parent && parent.seedChildren) {
+              const sc = parent.seedChildren.find(c => c.suffix === suffix);
+              if (sc && typeof sc.label === 'string') { hint = sc.label; break; }
+            }
+          }
+        }
+        // Fallback to element's own default label.
+        if (!hint && typeof el.label === 'string') hint = el.label;
+      }
+      inp.placeholder = hint || '';
+    })();
     setVal('input[data-flag="hidden"]', props.hidden);
     setVal('input[data-flag="lockAspect"]', props.lockAspect);
     setPickerValue('background', props.background);
