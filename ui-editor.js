@@ -1025,6 +1025,181 @@
     refreshClipboardUI();
     // §D19_P0§ Refresh parent-chain breadcrumb in inspector.
     renderParentBreadcrumb();
+    // §D19_P1§ Refresh group-only Layout panel + per-child Flex row.
+    renderLayoutSection();
+    renderFlexSection();
+    applyParentLayoutLockUI();
+  }
+
+  // §D19_P1§ Group-only Layout subsection. Direction (free/vert/horiz/grid),
+  // spacing, padding, columns. Reads from the active scope override (group
+  // entries are stored under the global key — see saveStore for isGroup).
+  function renderLayoutSection() {
+    const node = document.getElementById('layout-section');
+    if (!node) return;
+    const el = getElement(selectedElementId);
+    if (!el || el.kind !== 'group') { node.style.display = 'none'; node.innerHTML = ''; return; }
+    const ovr = store[selectedElementId] || {};
+    const dir = String(ovr.layoutDirection || 'free');
+    const sp  = Number.isFinite(Number(ovr.layoutSpacing)) ? Number(ovr.layoutSpacing) : 0;
+    const pad = (ovr.layoutPadding && typeof ovr.layoutPadding === 'object') ? ovr.layoutPadding : { t:0, r:0, b:0, l:0 };
+    const cols = Number.isFinite(Number(ovr.gridColumns)) ? Number(ovr.gridColumns) : 2;
+    const btn = (val, lbl, title) => `<button type="button" class="d19-lay-dir${dir===val?' on':''}" data-dir="${val}" title="${title}">${lbl}</button>`;
+    node.style.display = '';
+    node.innerHTML = ''
+      + '<div class="group-title" title="Auto-arrange children of this group">Layout</div>'
+      + '<div class="d19-lay-row" id="d19-lay-dirs">'
+      +   btn('free',       'Free',  'Children keep their own x/y')
+      +   btn('vertical',   '↕ Vert','Stack top to bottom')
+      +   btn('horizontal', '↔ Horiz','Stack left to right')
+      +   btn('grid',       '▦ Grid','Row-major grid')
+      + '</div>'
+      + (dir === 'free' ? '' :
+          '<div class="field-row"><label>Spacing</label><div class="row-input-wrap">'
+          + `<input type="number" data-lay="spacing" step="1" min="0" value="${sp}"/>`
+          + '<button type="button" class="ic-reset" data-lay-reset="spacing" title="Reset">↺</button>'
+          + '</div></div>'
+          + '<div class="pos-size-grid">'
+          +   `<div class="field-row"><label>Pad T</label><div class="row-input-wrap"><input type="number" data-lay-pad="t" step="1" value="${pad.t||0}"/></div></div>`
+          +   `<div class="field-row"><label>Pad R</label><div class="row-input-wrap"><input type="number" data-lay-pad="r" step="1" value="${pad.r||0}"/></div></div>`
+          +   `<div class="field-row"><label>Pad B</label><div class="row-input-wrap"><input type="number" data-lay-pad="b" step="1" value="${pad.b||0}"/></div></div>`
+          +   `<div class="field-row"><label>Pad L</label><div class="row-input-wrap"><input type="number" data-lay-pad="l" step="1" value="${pad.l||0}"/></div></div>`
+          + '</div>'
+          + (dir === 'grid'
+              ? `<div class="field-row"><label>Columns</label><div class="row-input-wrap"><input type="number" data-lay="columns" step="1" min="1" value="${cols}"/></div></div>`
+              : '')
+        );
+    // Wire direction buttons
+    node.querySelectorAll('[data-dir]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const v = b.dataset.dir;
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur };
+        if (v === 'free') delete next.layoutDirection;
+        else next.layoutDirection = v;
+        // Seed sensible defaults on first non-free switch
+        if (v !== 'free') {
+          if (next.layoutSpacing == null) next.layoutSpacing = 8;
+          if (!next.layoutPadding) next.layoutPadding = { t:0, r:0, b:0, l:0 };
+          if (v === 'grid' && next.gridColumns == null) next.gridColumns = 2;
+        }
+        if (Object.keys(next).length) store[selectedElementId] = next;
+        else delete store[selectedElementId];
+        markDirty(); saveStore();
+        renderProps(); renderPreview();
+      });
+    });
+    // Spacing / columns inputs
+    node.querySelectorAll('input[data-lay]').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        const v = Number(inp.value);
+        if (!Number.isFinite(v)) return;
+        const prop = inp.dataset.lay;
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur };
+        if (prop === 'spacing') next.layoutSpacing = Math.max(0, v);
+        else if (prop === 'columns') next.gridColumns = Math.max(1, Math.round(v));
+        store[selectedElementId] = next;
+        markDirty(); saveStoreSilent();
+        renderPreview();
+      });
+    });
+    // Padding inputs
+    node.querySelectorAll('input[data-lay-pad]').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        const side = inp.dataset.layPad;
+        const v = Number(inp.value);
+        if (!Number.isFinite(v)) return;
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur, layoutPadding: { ...(cur.layoutPadding || { t:0, r:0, b:0, l:0 }), [side]: v } };
+        store[selectedElementId] = next;
+        markDirty(); saveStoreSilent();
+        renderPreview();
+      });
+    });
+    // Spacing reset
+    node.querySelectorAll('button[data-lay-reset]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur };
+        delete next.layoutSpacing;
+        store[selectedElementId] = next;
+        markDirty(); saveStore();
+        renderProps(); renderPreview();
+      });
+    });
+  }
+
+  // §D19_P1§ Per-child Flex row, visible when the selected node's parent has
+  // a non-free layoutDirection.
+  function renderFlexSection() {
+    const node = document.getElementById('flex-section');
+    if (!node) return;
+    const el = getElement(selectedElementId);
+    if (!el) { node.style.display = 'none'; node.innerHTML = ''; return; }
+    const ovr = store[selectedElementId] || {};
+    const pid = ovr.parentId;
+    if (!pid) { node.style.display = 'none'; node.innerHTML = ''; return; }
+    const parentOvr = store[pid] || {};
+    const pdir = String(parentOvr.layoutDirection || 'free');
+    if (pdir === 'free') { node.style.display = 'none'; node.innerHTML = ''; return; }
+    const flex = Number.isFinite(Number(ovr.flex)) ? Number(ovr.flex) : 0;
+    node.style.display = '';
+    node.innerHTML = ''
+      + '<div class="group-title" title="Share remaining space along the parent\'s primary axis">Flex</div>'
+      + '<div class="field-row"><label>Weight</label><div class="row-input-wrap">'
+      + `<input type="number" data-flex step="1" min="0" value="${flex}" placeholder="0"/>`
+      + '<button type="button" class="ic-reset" data-flex-reset title="Reset">↺</button>'
+      + '</div></div>'
+      + '<div class="hint" style="font-size:11px;opacity:0.7">'
+      + (pdir === 'grid' ? 'Grid: flex ignored (cells are uniform).' : `Auto-${pdir==='vertical'?'sized height':'sized width'} when weight &gt; 0.`)
+      + '</div>';
+    const inp = node.querySelector('input[data-flex]');
+    if (inp) inp.addEventListener('input', () => {
+      const v = Number(inp.value);
+      if (!Number.isFinite(v)) return;
+      const cur = store[selectedElementId] || {};
+      const next = { ...cur };
+      if (v > 0) next.flex = v; else delete next.flex;
+      if (Object.keys(next).length) store[selectedElementId] = next;
+      else delete store[selectedElementId];
+      markDirty(); saveStoreSilent();
+      applyParentLayoutLockUI();
+      renderPreview();
+    });
+    const rb = node.querySelector('button[data-flex-reset]');
+    if (rb) rb.addEventListener('click', () => {
+      const cur = store[selectedElementId] || {};
+      const next = { ...cur }; delete next.flex;
+      if (Object.keys(next).length) store[selectedElementId] = next;
+      else delete store[selectedElementId];
+      markDirty(); saveStore();
+      renderProps(); renderPreview();
+    });
+  }
+
+  // §D19_P1§ Disable X/Y inputs when parent has non-free layout (auto-positioned)
+  // and disable the primary-axis size input when this child has flex>0.
+  function applyParentLayoutLockUI() {
+    const xIn = document.querySelector('input[data-prop="x"]');
+    const yIn = document.querySelector('input[data-prop="y"]');
+    const wIn = document.querySelector('input[data-prop="w"]');
+    const hIn = document.querySelector('input[data-prop="h"]');
+    [xIn, yIn, wIn, hIn].forEach((e) => { if (!e) return; e.disabled = false; e.title = ''; });
+    if (!selectedElementId) return;
+    const ovr = store[selectedElementId] || {};
+    const pid = ovr.parentId;
+    if (!pid) return;
+    const parentOvr = store[pid] || {};
+    const pdir = String(parentOvr.layoutDirection || 'free');
+    if (pdir === 'free') return;
+    const lockMsg = 'Auto-positioned by parent layout';
+    [xIn, yIn].forEach((e) => { if (!e) return; e.disabled = true; e.title = lockMsg; });
+    const flex = Number.isFinite(Number(ovr.flex)) ? Number(ovr.flex) : 0;
+    if (flex > 0 && pdir !== 'grid') {
+      const primary = (pdir === 'vertical') ? hIn : wIn;
+      if (primary) { primary.disabled = true; primary.title = 'Auto-sized by flex'; }
+    }
   }
 
   // §WYSIWYG§ Notify the embedded game iframe which UI element is currently
