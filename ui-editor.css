@@ -316,16 +316,28 @@
     align-self: center;
   }
   .preview-info.has-content { display: inline-flex; }
-  /* §ZOOM_BAR§ Dedicated top row above the viewport picker. Reads as
-     the most prominent control — designers reach for zoom often. */
+  /* §ZOOM_BAR§ Dedicated top row above the viewport picker. Slider is
+     dead-centered and doesn't reflow with the (possibly oversized) frame
+     below; selection-label pill floats to the right edge. Sticky so it
+     stays at top even when a large zoomed frame scrolls the wrapper. */
   .zoom-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     display: flex;
     align-items: center;
-    gap: 12px;
     width: 100%;
-    padding: 6px 14px;
+    padding: 8px 14px;
     background: var(--bg);
     border-bottom: 1px solid var(--line);
+  }
+  .zoom-bar .zoom-pill {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zoom-bar .preview-info {
+    margin-left: auto;
   }
   /* §ZOOM§ Unity Game-window-style zoom slider above the preview. */
   .preview-frame-wrap {
