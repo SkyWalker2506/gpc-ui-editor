@@ -335,10 +335,14 @@
       id: 'menu', label: 'Main Menu',
       bg: 'menu',
       elements: [
-        { id: 'menu.play',        label: 'PLAY',          defaults: { x: W/2 - 85, y: 260, w: 170, h: 46 } },
-        { id: 'menu.upgrades',    label: 'UPGRADES',      defaults: { x: W/2 - 85, y: 330, w: 170, h: 38 } },
-        { id: 'menu.shop',        label: 'SHOP',          defaults: { x: W/2 - 85, y: 380, w: 170, h: 38 } },
-        { id: 'menu.soundToggle', label: 'Sound toggle',  defaults: { x: W - 46,   y: 14,  w: 32,  h: 32 } }
+        { id: 'menu.title',       label: 'GOLF! title',   defaults: { x: W/2 - 112, y: 67, w: 224, h: 86 } },
+        { id: 'menu.previewBall', label: 'Mascot ball',   defaults: { x: W/2 - 24,  y: 186, w: 48, h: 56 } },
+        { id: 'menu.play',        label: 'PLAY',          defaults: { x: W/2 - 85, y: 260, w: 170, h: 46 }, defaultBg: 'ui-button-paper', defaultIcon: 'play' },
+        { id: 'menu.upgrades',    label: 'UPGRADES',      defaults: { x: W/2 - 85, y: 330, w: 170, h: 38 }, defaultBg: 'ui-button-paper', defaultIcon: 'upgrades' },
+        { id: 'menu.shop',        label: 'SHOP',          defaults: { x: W/2 - 85, y: 380, w: 170, h: 38 }, defaultBg: 'ui-button-paper', defaultIcon: 'shop' },
+        { id: 'menu.coinChip',    label: 'Coin chip',     defaults: { x: W - 242,  y: 14, w: 90, h: 32 }, defaultBg: 'ui-chip-coin-plate' },
+        { id: 'menu.gemChip',     label: 'Gem chip',      defaults: { x: W - 144,  y: 14, w: 90, h: 32 }, defaultBg: 'ui-chip-gem-plate' },
+        { id: 'menu.soundToggle', label: 'Sound toggle',  defaults: { x: W - 46,   y: 14,  w: 32,  h: 32 }, defaultBg: 'ui-button-paper', defaultIcon: 'soundOn' }
       ]
     },
     {
@@ -1158,9 +1162,26 @@
       if (sub) sub.textContent = '(custom — not in catalog)';
       clr.style.display = '';
     } else {
-      thumb.classList.add('empty');
-      name.textContent = 'Default sprite';
-      if (sub) sub.textContent = 'Click to override';
+      // No override — surface the actual in-code default for this element so
+      // the user sees what's currently rendering (e.g. "ui-button-paper" /
+      // "play"), not a generic "Default sprite" placeholder.
+      const el = getElement(selectedElementId);
+      const defKey = el ? (field === 'background' ? el.defaultBg : (field === 'icon' ? el.defaultIcon : '')) : '';
+      const defEntry = defKey ? (cfg.byKey()[defKey] || _resolveSpriteEntry(defKey)) : null;
+      if (defEntry) {
+        thumb.classList.remove('empty');
+        thumb.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = defEntry.src; img.alt = defEntry.label;
+        img.style.opacity = '0.55';
+        thumb.appendChild(img);
+        name.textContent = defEntry.label;
+        if (sub) sub.textContent = 'in-code default · click to override';
+      } else {
+        thumb.classList.add('empty');
+        name.textContent = defKey || 'Default render';
+        if (sub) sub.textContent = defKey ? 'in-code default · click to override' : 'Click to set a sprite';
+      }
       clr.style.display = 'none';
     }
     // Highlight the selected cell in the open popover.
