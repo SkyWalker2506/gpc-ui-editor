@@ -330,34 +330,185 @@
   // Each element lists its known id (matches what btn() in game.js passes
   // via `style.id`), human label and sensible defaults so the preview can
   // sketch the layout even when nothing is overridden yet.
+  // §D19_P5§ Buttons are now composable: parent kind:'button' (invisible
+  // hit-rect + Action) with seeded children (bg image + optional icon image
+  // + optional text). Legacy kind:'leaf' is sunset for these ids — old override
+  // stores auto-decompose via migrateLegacyLeaves() on load.
+  // seedChildren entries describe child override rows the editor seeds when
+  // the parent is loaded for the first time. Each child id is `<parent>.<suffix>`.
   const SCREENS = [
     {
       id: 'menu', label: 'Main Menu',
       bg: 'menu',
       elements: [
-        { id: 'menu.title',       label: 'GOLF! title',   defaults: { x: W/2 - 112, y: 67, w: 224, h: 86 } },
-        { id: 'menu.previewBall', label: 'Mascot ball',   defaults: { x: W/2 - 24,  y: 186, w: 48, h: 56 } },
-        { id: 'menu.play',        label: 'PLAY',          defaults: { x: W/2 - 85, y: 260, w: 170, h: 46 }, defaultBg: 'ui-button-paper', defaultIcon: 'play' },
-        { id: 'menu.upgrades',    label: 'UPGRADES',      defaults: { x: W/2 - 85, y: 330, w: 170, h: 38 }, defaultBg: 'ui-button-paper', defaultIcon: 'upgrades' },
-        { id: 'menu.shop',        label: 'SHOP',          defaults: { x: W/2 - 85, y: 380, w: 170, h: 38 }, defaultBg: 'ui-button-paper', defaultIcon: 'shop' },
-        { id: 'menu.coinChip',    label: 'Coin chip',     defaults: { x: W - 242,  y: 14, w: 90, h: 32 }, defaultBg: 'ui-chip-coin-plate' },
-        { id: 'menu.gemChip',     label: 'Gem chip',      defaults: { x: W - 144,  y: 14, w: 90, h: 32 }, defaultBg: 'ui-chip-gem-plate' },
-        { id: 'menu.soundToggle', label: 'Sound toggle',  defaults: { x: W - 46,   y: 14,  w: 32,  h: 32 }, defaultBg: 'ui-button-paper', defaultIcon: 'soundOn' }
+        // Non-button visuals — kept as legacy for now (title + mascot ball).
+        { id: 'menu.title',       label: 'GOLF! title',   kind: 'leaf', defaults: { x: W/2 - 112, y: 67, w: 224, h: 86 } },
+        { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'leaf', defaults: { x: W/2 - 24,  y: 186, w: 48, h: 56 } },
+        // Composable buttons — parent is invisible, children render.
+        { id: 'menu.play',        label: 'PLAY button',   kind: 'button', action: 'goto:courses',
+          defaults: { x: W/2 - 85, y: 260, w: 170, h: 46 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'PLAY bg',   background: 'ui-button-paper', x: 0,  y: 0,  w: 170, h: 46 },
+            { suffix: 'icon', kind: 'image', label: 'PLAY icon', background: 'ui-play-icon',    x: 10, y: 9,  w: 28,  h: 28 },
+            { suffix: 'text', kind: 'text',  label: 'PLAY',      x: 50, y: 0, w: 110, h: 46, fontSize: 19, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'menu.upgrades',    label: 'UPGRADES button', kind: 'button', action: 'goto:upgrades',
+          defaults: { x: W/2 - 85, y: 330, w: 170, h: 38 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'UPGRADES bg',   background: 'ui-button-paper',    x: 0,  y: 0, w: 170, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'UPGRADES icon', background: 'ui-upgrades-icon', x: 10, y: 7, w: 24,  h: 24 },
+            { suffix: 'text', kind: 'text',  label: 'UPGRADES',      x: 44, y: 0, w: 116, h: 38, fontSize: 14, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'menu.shop',        label: 'SHOP button', kind: 'button', action: 'goto:shop',
+          defaults: { x: W/2 - 85, y: 380, w: 170, h: 38 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'SHOP bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 170, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'SHOP icon', background: 'ui-shop-icon',  x: 10, y: 7, w: 24,  h: 24 },
+            { suffix: 'text', kind: 'text',  label: 'SHOP',      x: 44, y: 0, w: 116, h: 38, fontSize: 14, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'menu.coinChip',    label: 'Coin chip', kind: 'button', action: '',
+          defaults: { x: W - 242, y: 14, w: 92, h: 38 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 38, y: 0, w: 50, h: 38, fontSize: 16, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'menu.gemChip',     label: 'Gem chip', kind: 'button', action: '',
+          defaults: { x: W - 144, y: 14, w: 92, h: 38 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 38, y: 0, w: 50, h: 38, fontSize: 16, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'menu.soundToggle', label: 'Sound toggle', kind: 'button', action: 'toggle:sound',
+          defaults: { x: W - 46, y: 14, w: 32, h: 32 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Sound bg',   background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'icon', kind: 'image', label: 'Sound icon', background: 'ui-sound-on',     x: 4, y: 4, w: 24, h: 24 }
+          ]
+        }
       ]
     },
     {
       id: 'play', label: 'In-Game HUD',
       bg: 'play',
       elements: [
-        { id: 'play.back',     label: 'Back / Editor', defaults: { x: W - 70,  y: 72, w: 58, h: 24 } },
-        { id: 'play.restart',  label: 'Restart',        defaults: { x: W - 134, y: 72, w: 60, h: 24 } },
-        { id: 'play.unstuck',  label: 'Unstuck',        defaults: { x: W - 210, y: 72, w: 72, h: 24 } }
+        { id: 'play.back',     label: 'Back / Editor', kind: 'button', action: 'goto:select',
+          defaults: { x: W - 70, y: 72, w: 58, h: 24 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Back bg', background: 'ui-button-paper', x: 0, y: 0, w: 58, h: 24 },
+            { suffix: 'text', kind: 'text',  label: 'Back',    x: 0, y: 0, w: 58, h: 24, fontSize: 11, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'play.restart',  label: 'Restart', kind: 'button', action: 'level:restart',
+          defaults: { x: W - 134, y: 72, w: 60, h: 24 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Restart bg', background: 'ui-button-paper', x: 0, y: 0, w: 60, h: 24 },
+            { suffix: 'text', kind: 'text',  label: 'Restart',    x: 0, y: 0, w: 60, h: 24, fontSize: 11, color: '#2A1C0E' }
+          ]
+        },
+        { id: 'play.unstuck',  label: 'Unstuck', kind: 'button', action: 'level:unstuck',
+          defaults: { x: W - 210, y: 72, w: 72, h: 24 },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Unstuck bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 72, h: 24 },
+            { suffix: 'icon', kind: 'image', label: 'Unstuck icon', background: 'ui-unstuck-icon', x: 4,  y: 4, w: 16, h: 16 },
+            { suffix: 'text', kind: 'text',  label: 'Unstuck',      x: 22, y: 0, w: 50, h: 24, fontSize: 10, color: '#2A1C0E' }
+          ]
+        }
       ]
     }
   ];
 
+  // §D19_P5§ One-shot migration: seed composable children for each SCREENS
+  // button if they aren't already in the store, AND auto-decompose any
+  // legacy single-leaf override (background/icon/label fields directly on
+  // the parent id) into the new tree. Idempotent.
+  function migrateLegacyLeaves() {
+    let changed = false;
+    for (const screen of SCREENS) {
+      for (const el of screen.elements) {
+        if (el.kind !== 'button' || !el.seedChildren) continue;
+        // Detect a legacy override on the parent id (no kind, but has any of
+        // background / icon / label). Decompose into bg/icon/text children
+        // when present, then strip those legacy fields from the parent.
+        const parent = store[el.id];
+        const isLegacyLeaf = parent && !parent.kind &&
+          (parent.background || parent.icon || parent.label != null);
+        if (isLegacyLeaf) {
+          const legBg   = parent.background;
+          const legIcon = parent.icon;
+          const legLbl  = parent.label;
+          for (const sc of el.seedChildren) {
+            const cid = el.id + '.' + sc.suffix;
+            if (store[cid]) continue; // never overwrite user data
+            const child = { kind: sc.kind, parentId: el.id, label: sc.label,
+                            x: sc.x, y: sc.y, w: sc.w, h: sc.h, _originX: sc.x, _originY: sc.y };
+            if (sc.kind === 'image') {
+              child.background = (sc.suffix === 'bg' && legBg) ? legBg
+                                : (sc.suffix === 'icon' && legIcon) ? legIcon
+                                : sc.background;
+            } else if (sc.kind === 'text') {
+              if (sc.suffix === 'text' && typeof legLbl === 'string') child.label = legLbl;
+              if (sc.fontSize) child.fontSize = sc.fontSize;
+              if (sc.color) child.color = sc.color;
+              if (sc.boundVar) child.boundVar = sc.boundVar;
+            }
+            store[cid] = child;
+            changed = true;
+          }
+          // Strip legacy fields, keep position/size on parent.
+          const np = { ...parent, kind: 'button' };
+          delete np.background; delete np.icon; delete np.label;
+          if (el.action) np.action = el.action;
+          store[el.id] = np;
+          changed = true;
+          continue;
+        }
+        // Non-legacy: ensure parent has kind:'button' and seedChildren exist.
+        if (!parent) {
+          // Don't seed silently — only mark parent as button if user has
+          // touched any of its children. Otherwise leave as default-rendered.
+          // BUT: ensure children exist so the button renders out of the box.
+          // We seed both parent AND children so the editor + game agree.
+          store[el.id] = { kind: 'button', action: el.action || '' };
+          changed = true;
+        } else if (!parent.kind) {
+          store[el.id] = { ...parent, kind: 'button', action: parent.action || el.action || '' };
+          changed = true;
+        }
+        for (const sc of el.seedChildren) {
+          const cid = el.id + '.' + sc.suffix;
+          if (store[cid]) continue;
+          const child = { kind: sc.kind, parentId: el.id, label: sc.label,
+                          x: sc.x, y: sc.y, w: sc.w, h: sc.h, _originX: sc.x, _originY: sc.y };
+          if (sc.kind === 'image') child.background = sc.background;
+          else if (sc.kind === 'text') {
+            if (sc.fontSize) child.fontSize = sc.fontSize;
+            if (sc.color) child.color = sc.color;
+            if (sc.boundVar) child.boundVar = sc.boundVar;
+          }
+          store[cid] = child;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+        localStorage.setItem('gpc_ui_overrides_updated_at', String(Date.now()));
+      } catch (_) {}
+    }
+    return changed;
+  }
+
   // ----- State -----
   let store = loadStore();
+  // §D19_P5§ Decompose legacy leaf overrides + seed missing children. Run
+  // exactly once per page load.
+  try { migrateLegacyLeaves(); } catch (e) { try { console.warn('[ui-editor] migrate failed', e); } catch (_) {} }
   let activeScreenId = 'menu';
   let selectedElementId = SCREENS[0].elements[0].id;
   let scopeCourseId = ''; // '' = global
@@ -666,12 +817,22 @@
       const v = store[k];
       if (!v || DYNAMIC_KINDS.indexOf(v.kind) < 0) continue;
       if (k.indexOf(screenPrefix) !== 0) continue;
-      // Path segment after screen prefix must start with one of the dynamic kinds.
+      // §D19_P5§ Two id shapes are valid:
+      //   - dynamic-kind/N (e.g. menu.button.1)         → editor-created node
+      //   - SCREENS-defined parent or its child suffix  → seeded composable
+      // We accept both: any store entry with a recognised kind on this screen
+      // is exposed as a tree node. Skip SCREENS parent ids though — those are
+      // already represented via the screen.elements branch in buildTree().
       const tail = k.slice(screenPrefix.length);
       const dot = tail.indexOf('.');
       const kindSeg = dot > 0 ? tail.slice(0, dot) : '';
-      if (DYNAMIC_KINDS.indexOf(kindSeg) < 0) continue;
-      const defaultLabel = (kindSeg.charAt(0).toUpperCase() + kindSeg.slice(1)) + ' ' + tail.slice(dot + 1);
+      const isScreensParent = SCREENS.some(s => s.id === activeScreenId
+        && s.elements.some(e => e.id === k));
+      if (isScreensParent) continue;
+      const defaultLabel = (v.label) ? v.label
+        : (kindSeg && DYNAMIC_KINDS.indexOf(kindSeg) >= 0)
+          ? (kindSeg.charAt(0).toUpperCase() + kindSeg.slice(1)) + ' ' + tail.slice(dot + 1)
+          : tail;
       out.push({
         id: k,
         label: typeof v.label === 'string' && v.label ? v.label : defaultLabel,
@@ -701,7 +862,13 @@
   function buildTree() {
     const screen = getScreen();
     const nodes = []
-      .concat(screen.elements.map((e) => ({ ...e, kind: 'leaf' })))
+      .concat(screen.elements.map((e) => {
+        // §D19_P5§ Honor SCREENS-declared kind (button vs legacy leaf). Read
+        // back the override-store kind too so user changes (e.g. converting
+        // a kind:'leaf' into something else) survive a reload.
+        const ovrKind = (store[e.id] && store[e.id].kind) || null;
+        return { ...e, kind: e.kind || ovrKind || 'leaf' };
+      }))
       .concat(getGroupNodes());
     const byId = {};
     nodes.forEach((n) => { byId[n.id] = { el: n, children: [] }; });
@@ -1131,6 +1298,68 @@
     applyParentLayoutLockUI();
     // §D19_P4§ Kind-aware inspector sections — hide irrelevant Style controls.
     applyKindAwareInspector();
+    // §D19_P5§ Add the button-only Action input + text-only Bound Variable picker.
+    renderD19P5Section();
+  }
+
+  // §D19_P5§ Per-kind extras: button shows an Action text input; text shows a
+  // Bound Variable dropdown. Rendered as an extra panel appended to #right-panel.
+  function renderD19P5Section() {
+    const host = document.getElementById('right-panel') || document.getElementById('inspector') || document.body;
+    let panel = document.getElementById('d19-p5-section');
+    const el = getElement(selectedElementId);
+    if (!el) { if (panel) panel.remove(); return; }
+    const k = el.kind || 'leaf';
+    if (k !== 'button' && k !== 'text') { if (panel) panel.remove(); return; }
+    const ovr = store[selectedElementId] || {};
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'd19-p5-section';
+      panel.className = 'inspector-section';
+      panel.style.cssText = 'border-top:1px solid #e2d4b8;padding:10px 12px;margin-top:6px';
+      // Append after layout-section if possible
+      const layoutSec = document.getElementById('layout-section');
+      if (layoutSec && layoutSec.parentNode) layoutSec.parentNode.insertBefore(panel, layoutSec.nextSibling);
+      else host.appendChild(panel);
+    }
+    if (k === 'button') {
+      const cur = (typeof ovr.action === 'string') ? ovr.action : '';
+      panel.innerHTML = '<div class="group-title" title="Click action handler key (e.g. goto:courses, toggle:sound)">Action</div>'
+        + '<div class="field-row"><label>Action</label><div class="row-input-wrap">'
+        + `<input type="text" id="d19p5-action" placeholder="goto:courses" value="${cur.replace(/"/g,'&quot;')}"/>`
+        + '</div></div>'
+        + '<div class="hint" style="font-size:11px;opacity:0.7">Resolved at runtime by the game. Empty = no-op.</div>';
+      const inp = panel.querySelector('#d19p5-action');
+      inp.addEventListener('input', () => {
+        const v = String(inp.value || '');
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur, kind: 'button' };
+        if (v) next.action = v; else delete next.action;
+        store[selectedElementId] = next;
+        markDirty(); saveStoreSilent();
+      });
+    } else if (k === 'text') {
+      const cur = (typeof ovr.boundVar === 'string') ? ovr.boundVar : '';
+      const opts = ['', 'coins', 'gems', 'shots', 'maxShots', 'course', 'level'];
+      panel.innerHTML = '<div class="group-title" title="Live game value to display instead of static label">Bound Variable</div>'
+        + '<div class="field-row"><label>Bind to</label><div class="row-input-wrap">'
+        + '<select id="d19p5-boundvar">'
+        + opts.map(o => `<option value="${o}"${o===cur?' selected':''}>${o||'(none)'}</option>`).join('')
+        + '</select>'
+        + '</div></div>'
+        + '<div class="hint" style="font-size:11px;opacity:0.7">When set, the rendered text comes from the live game state.</div>';
+      const sel = panel.querySelector('#d19p5-boundvar');
+      sel.addEventListener('change', () => {
+        const v = String(sel.value || '');
+        const cur = store[selectedElementId] || {};
+        const next = { ...cur };
+        if (v) next.boundVar = v; else delete next.boundVar;
+        if (Object.keys(next).length) store[selectedElementId] = next;
+        else delete store[selectedElementId];
+        markDirty(); saveStore();
+        renderPreview();
+      });
+    }
   }
 
   // §D19_P4§ Show/hide Style sub-rows based on the selected node's kind:
