@@ -316,28 +316,40 @@
     align-self: center;
   }
   .preview-info.has-content { display: inline-flex; }
-  /* §ZOOM_BAR§ Dedicated top row above the viewport picker. Slider is
-     dead-centered and doesn't reflow with the (possibly oversized) frame
-     below; selection-label pill floats to the right edge. Sticky so it
-     stays at top even when a large zoomed frame scrolls the wrapper. */
-  .zoom-bar {
+  /* §META_STRIP§ Floats above the shell, between the editor-shell topbar
+     and the legacy bar. Houses [LIVE EDIT pill][centered zoom slider]
+     [selection-info pill]. Width is independent of the iframe so zoom
+     never moves the slider. Sticky so it stays visible even when the
+     center column scrolls horizontally for a large zoomed frame. */
+  .meta-strip {
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: 6;
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 8px 14px;
+    padding: 6px 14px;
     background: var(--bg);
     border-bottom: 1px solid var(--line);
+    min-height: 32px;
   }
-  .zoom-bar .zoom-pill {
+  .meta-strip .zoom-pill {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
   }
-  .zoom-bar .preview-info {
-    margin-left: auto;
+  .meta-strip .preview-info { margin-left: auto; }
+  .meta-strip .live-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px 3px 8px;
+    background: #16a34a;
+    color: #fff;
+    font: 700 10px Fredoka, sans-serif;
+    letter-spacing: 0.04em;
+    border-radius: 999px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    user-select: none;
   }
   /* §ZOOM§ Unity Game-window-style zoom slider above the preview. */
   .preview-frame-wrap {
