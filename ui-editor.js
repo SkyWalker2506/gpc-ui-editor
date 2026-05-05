@@ -1166,8 +1166,16 @@
       // the user sees what's currently rendering (e.g. "ui-button-paper" /
       // "play"), not a generic "Default sprite" placeholder.
       const el = getElement(selectedElementId);
-      const defKey = el ? (field === 'background' ? el.defaultBg : (field === 'icon' ? el.defaultIcon : '')) : '';
-      const defEntry = defKey ? (cfg.byKey()[defKey] || _resolveSpriteEntry(defKey)) : null;
+      const defKeyRaw = el ? (field === 'background' ? el.defaultBg : (field === 'icon' ? el.defaultIcon : '')) : '';
+      // Short icon keys ('play', 'shop') map to full asset names ('ui-play-icon').
+      // Try direct lookup first; if it fails AND the field is icon, try the
+      // canonical ui-<key>-icon name.
+      let defKey = defKeyRaw;
+      let defEntry = defKey ? (cfg.byKey()[defKey] || _resolveSpriteEntry(defKey)) : null;
+      if (!defEntry && defKeyRaw && field === 'icon') {
+        defKey = 'ui-' + defKeyRaw + '-icon';
+        defEntry = cfg.byKey()[defKey] || _resolveSpriteEntry(defKey);
+      }
       if (defEntry) {
         thumb.classList.remove('empty');
         thumb.innerHTML = '';
@@ -1184,9 +1192,22 @@
       }
       clr.style.display = 'none';
     }
-    // Highlight the selected cell in the open popover.
+    // Highlight the selected cell in the open popover. When override is
+    // empty, mark the in-code default cell as active (so the user sees
+    // which sprite is actually rendering, not just the abstract DEFAULT
+    // tile).
+    let activeKey = key || '';
+    if (!activeKey) {
+      const el = getElement(selectedElementId);
+      const defRaw = el ? (field === 'background' ? el.defaultBg : (field === 'icon' ? el.defaultIcon : '')) : '';
+      if (defRaw) {
+        activeKey = (cfg.byKey()[defRaw] ? defRaw
+                    : (field === 'icon' && cfg.byKey()['ui-' + defRaw + '-icon']) ? ('ui-' + defRaw + '-icon')
+                    : defRaw);
+      }
+    }
     root.querySelectorAll('.sp-cell').forEach((c) => {
-      c.classList.toggle('active', c.dataset.key === (key || ''));
+      c.classList.toggle('active', c.dataset.key === activeKey);
     });
   }
   function _activePickerKey(field) {
