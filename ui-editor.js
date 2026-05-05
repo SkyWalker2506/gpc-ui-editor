@@ -455,9 +455,28 @@
         const first = (s.elements[0] && s.elements[0].id) || null;
         if (first) selectedElementId = first;
         renderScreenTabs(); renderElementList(); renderProps(); renderPreview();
+        swapPreviewIframeForScreen(s.id);
       });
       root.appendChild(btn);
     }
+  }
+
+  // ----- Iframe screen swap -----
+  // When user toggles between "Main menu" and "In-game HUD", reload the
+  // preview iframe with the matching deep-link so the actual buttons under
+  // edit are visible. Per project memory (feedback_playwright_canvas_nav_broken)
+  // canvas clicks don't reliably navigate; URL params do.
+  function swapPreviewIframeForScreen(screenId) {
+    try {
+      const iframe = document.getElementById('ui-preview-iframe');
+      if (!iframe) return;
+      const next = screenId === 'play'
+        ? './?editorSync=1&course=1&level=1'
+        : './?editorSync=1&menuOnly=1';
+      const cur = (iframe.getAttribute('src') || '').split('#')[0];
+      if (cur === next) return;
+      iframe.setAttribute('src', next);
+    } catch (_) {}
   }
 
   // ----- Render: element list -----
@@ -1523,6 +1542,7 @@
     renderElementList();
     renderProps();
     renderPreview();
+    swapPreviewIframeForScreen(activeScreenId);
     bindUI();
     // Boot-time renders may incidentally trigger markDirty() (e.g. through
     // input-binding side effects). Clear the dirty pill once the initial
