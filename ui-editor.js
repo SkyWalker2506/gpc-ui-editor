@@ -1387,16 +1387,12 @@
         localStorage.setItem('gpc_ui_overrides_updated_at', String(Date.now()));
       } catch (_) {}
 
-      // 2. Prompt for password (deploys overrides to GitHub via /api).
-      const pw = prompt('Publish password (deploys UI overrides globally):');
-      if (!pw) { flashToast('Publish cancelled'); return; }
-
       flashToast('Publishing...');
       try {
         const res = await fetch('/api/publish', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kind: 'ui-overrides', password: pw, store })
+          body: JSON.stringify({ kind: 'ui-overrides', store })
         });
         let body = {};
         try { body = await res.json(); } catch (_) {}
