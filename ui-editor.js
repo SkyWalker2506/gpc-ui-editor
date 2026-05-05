@@ -644,35 +644,43 @@
     try { localStorage.setItem(TREE_COLLAPSE_KEY, JSON.stringify(_collapsedNodes)); } catch (_) {}
   }
 
-  // Stable id for a new group node. Scoped to the screen so the same group
-  // ids don't leak across menu/play tabs.
-  function _newGroupId() {
+  // Stable id for a new dynamic node. Scoped to the screen + kind so ids
+  // don't leak across menu/play tabs and group/button/image/text spaces.
+  // §D19_P4§ Generalised from `_newGroupId` to handle 4 dynamic kinds.
+  const DYNAMIC_KINDS = ['group', 'button', 'image', 'text'];
+  function _newNodeId(kind) {
+    const k = (DYNAMIC_KINDS.indexOf(kind) >= 0) ? kind : 'group';
     let i = 1;
-    while (store[activeScreenId + '.group.' + i]) i++;
-    return activeScreenId + '.group.' + i;
+    while (store[activeScreenId + '.' + k + '.' + i]) i++;
+    return activeScreenId + '.' + k + '.' + i;
   }
-  // Return all group entries for the active screen as virtual "elements"
-  // matching the SCREENS shape (id, label, defaults). Read from store.
+  // Back-compat shim — unused after P4 but kept so callers in other forks don't break.
+  function _newGroupId() { return _newNodeId('group'); }
+  // Return all dynamic-kind entries for the active screen as virtual "elements"
+  // matching the SCREENS shape. §D19_P4§ Now covers group + button + image + text.
   function getGroupNodes() {
     const out = [];
-    const prefix = activeScreenId + '.group.';
+    const screenPrefix = activeScreenId + '.';
     for (const k of Object.keys(store)) {
-      // Skip per-course entries (those carry @N suffix); group base entry is
-      // global. The cascade applies the same parentId from the global entry
-      // whether the user moved it per-course or not.
-      if (k.indexOf('@') >= 0) continue;
+      if (k.indexOf('@') >= 0) continue; // skip per-course
       const v = store[k];
-      if (!v || v.kind !== 'group') continue;
-      if (k.indexOf(prefix) !== 0) continue;
+      if (!v || DYNAMIC_KINDS.indexOf(v.kind) < 0) continue;
+      if (k.indexOf(screenPrefix) !== 0) continue;
+      // Path segment after screen prefix must start with one of the dynamic kinds.
+      const tail = k.slice(screenPrefix.length);
+      const dot = tail.indexOf('.');
+      const kindSeg = dot > 0 ? tail.slice(0, dot) : '';
+      if (DYNAMIC_KINDS.indexOf(kindSeg) < 0) continue;
+      const defaultLabel = (kindSeg.charAt(0).toUpperCase() + kindSeg.slice(1)) + ' ' + tail.slice(dot + 1);
       out.push({
         id: k,
-        label: typeof v.label === 'string' && v.label ? v.label : ('Group ' + k.slice(prefix.length)),
-        kind: 'group',
+        label: typeof v.label === 'string' && v.label ? v.label : defaultLabel,
+        kind: v.kind,
         defaults: {
           x: Number.isFinite(Number(v._originX)) ? Number(v._originX) : (Number(v.x) || 0),
           y: Number.isFinite(Number(v._originY)) ? Number(v._originY) : (Number(v.y) || 0),
-          w: Number(v.w) || 200,
-          h: Number(v.h) || 100
+          w: Number(v.w) || (v.kind === 'group' ? 200 : v.kind === 'image' ? 64 : v.kind === 'text' ? 120 : 120),
+          h: Number(v.h) || (v.kind === 'group' ? 100 : v.kind === 'image' ? 64 : v.kind === 'text' ? 24 : 40)
         }
       });
     }
@@ -771,21 +779,41 @@
     if (undo) undo.commit();
     renderElementList(); renderProps(); renderPreview();
   }
-  // Create a new group node at root (or under selection if it's a group).
-  function createGroupNode() {
-    const id = _newGroupId();
+  // §D19_P4§ Kind-aware node defaults. group/button accept children; image/text are leafs.
+  const NODE_KIND_DEFAULTS = {
+    group:  { w: 200, h: 100, label: 'Group',  acceptsChildren: true,  ico: '▣' /* ▣ */ },
+    button: { w: 120, h: 40,  label: 'Button', acceptsChildren: true,  ico: '■' /* ■ */, defaultAction: '' },
+    image:  { w: 64,  h: 64,  label: 'Image',  acceptsChildren: false, ico: '🖼' /* 🖼 */, defaultBackground: '' },
+    text:   { w: 120, h: 24,  label: 'Text',   acceptsChildren: false, ico: 'T', defaultLabel: 'Text', defaultFontSize: 14 }
+  };
+  function nodeAcceptsChildren(id) {
+    const v = store[id];
+    if (!v) return false;
+    const def = NODE_KIND_DEFAULTS[v.kind];
+    return !!(def && def.acceptsChildren);
+  }
+
+  // §D19_P4§ Create any dynamic-kind node (group/button/image/text) at root,
+  // or under the current selection if that selection accepts children.
+  function createDynamicNode(kind) {
+    const def = NODE_KIND_DEFAULTS[kind];
+    if (!def) return;
+    const id = _newNodeId(kind);
     let parentId = null;
-    if (selectedElementId) {
-      const sel = store[selectedElementId];
-      if (sel && sel.kind === 'group') parentId = selectedElementId;
+    if (selectedElementId && nodeAcceptsChildren(selectedElementId)) {
+      parentId = selectedElementId;
     }
-    const x = 100, y = 100, w = 200, h = 100;
+    const x = 100, y = 100, w = def.w, h = def.h;
     const entry = {
-      kind: 'group',
-      label: 'Group',
+      kind,
+      label: def.label,
       x, y, w, h,
       _originX: x, _originY: y
     };
+    if (kind === 'text') {
+      entry.label = def.defaultLabel;
+      entry.fontSize = def.defaultFontSize;
+    }
     if (parentId) entry.parentId = parentId;
     store[id] = entry;
     if (undo) undo.recordBefore();
@@ -795,18 +823,24 @@
     selectedElementId = id;
     selectedLayerId = null;
     renderElementList(); renderProps(); renderPreview();
-    flashToast('Group created', 'success');
+    flashToast(def.label + ' created', 'success');
   }
-  // Delete a group: remove the entry; children are re-parented to root.
-  function deleteGroupNode(id) {
-    if (!store[id] || store[id].kind !== 'group') return;
+  // Public wrappers for the toolbar buttons.
+  function createGroupNode()  { createDynamicNode('group'); }
+  function createButtonNode() { createDynamicNode('button'); }
+  function createImageNode()  { createDynamicNode('image'); }
+  function createTextNode()   { createDynamicNode('text'); }
+
+  // Delete a dynamic-kind node: remove the entry; children re-parent to root.
+  function deleteDynamicNode(id) {
+    const v = store[id];
+    if (!v || DYNAMIC_KINDS.indexOf(v.kind) < 0) return;
     if (undo) undo.recordBefore();
     delete store[id];
-    // Children: drop their parentId so they pop to root.
     for (const k of Object.keys(store)) {
-      const v = store[k];
-      if (v && v.parentId === id) {
-        const nv = { ...v }; delete nv.parentId;
+      const vv = store[k];
+      if (vv && vv.parentId === id) {
+        const nv = { ...vv }; delete nv.parentId;
         if (Object.keys(nv).length) store[k] = nv;
         else delete store[k];
       }
@@ -816,8 +850,10 @@
     if (undo) undo.commit();
     if (selectedElementId === id) selectedElementId = null;
     renderElementList(); renderProps(); renderPreview();
-    flashToast('Group deleted', 'info');
+    flashToast((v.kind.charAt(0).toUpperCase() + v.kind.slice(1)) + ' deleted', 'info');
   }
+  // Back-compat alias.
+  function deleteGroupNode(id) { return deleteDynamicNode(id); }
 
   // ----- Render: element list (now hierarchy tree) -----
   function renderElementList() {
@@ -829,9 +865,30 @@
       return;
     }
     const tree = buildTree();
-    function renderNode(node, depth) {
+    // §D19_P4§ Build a quick lookup of descendants of the selected node so we
+    // can tint them in the tree (Unity Hierarchy "child highlight").
+    const descendantSet = new Set();
+    if (selectedElementId) {
+      const queue = [selectedElementId];
+      while (queue.length) {
+        const cur = queue.shift();
+        for (const k of Object.keys(store)) {
+          if (k.indexOf('@') >= 0) continue;
+          const v = store[k];
+          if (v && v.parentId === cur) {
+            if (!descendantSet.has(k)) { descendantSet.add(k); queue.push(k); }
+          }
+        }
+      }
+    }
+    function renderNode(node, depth, ancestorLastFlags) {
       const el = node.el;
-      const isGroup = el.kind === 'group';
+      const kindDef = NODE_KIND_DEFAULTS[el.kind] || null;
+      const isGroup    = el.kind === 'group';
+      const isButton   = el.kind === 'button';
+      const isImage    = el.kind === 'image';
+      const isText     = el.kind === 'text';
+      const isDynamic  = !!kindDef;
       const hasChildren = node.children.length > 0;
       const collapsed = isCollapsed(el.id);
       const item = document.createElement('div');
@@ -840,8 +897,11 @@
       item.className = 'el-item'
         + (el.id === selectedElementId ? ' active' : '')
         + (hasOvr ? ' has-override' : '')
-        + (isGroup ? ' is-group' : '');
-      item.style.paddingLeft = (9 + depth * 12) + 'px';
+        + (isGroup  ? ' is-group'  : '')
+        + (isButton ? ' is-button' : '')
+        + (isImage  ? ' is-image'  : '')
+        + (isText   ? ' is-text'   : '')
+        + (descendantSet.has(el.id) ? ' descendant-of-selected' : '');
       item.dataset.nodeId = el.id;
       item.draggable = true;
       const badges = scopes.map((s) => {
@@ -850,13 +910,32 @@
         const title = s === '' ? 'Global override' : ('Course ' + s + ' override');
         return `<span class="${cls}" title="${title}">${lbl}</span>`;
       }).join('');
+      // Tree rail stack — one slot per ancestor depth. ancestorLastFlags[i]==true
+      // means that ancestor was the last sibling at depth i, so its rail vanishes
+      // for descendants (Unity-style elbow). Final slot draws the elbow.
+      let railHtml = '';
+      for (let i = 0; i < depth; i++) {
+        const isLast = ancestorLastFlags[i];
+        railHtml += `<span class="tree-rail${isLast ? ' empty' : ''}"></span>`;
+      }
+      if (depth > 0) {
+        // Replace the deepest rail slot with the .last variant (drawn elbow).
+        // Easier: append the elbow as an extra thin slot.
+        railHtml = railHtml.slice(0, railHtml.lastIndexOf('<span class="tree-rail'));
+        const isLastChild = ancestorLastFlags[depth - 1];
+        railHtml += `<span class="tree-rail last${isLastChild ? '' : ''}"></span>`;
+      }
       const chevSlot = hasChildren
         ? `<span class="tree-chev clickable" data-act="toggle">${collapsed ? '▸' : '▾'}</span>`
         : `<span class="tree-chev"></span>`;
-      const labelText = isGroup ? (el.label + ' (group)') : el.label;
-      item.innerHTML = chevSlot
-        + `<span class="label">${labelText}</span>`
-        + `<span class="meta">${isGroup ? 'group' : el.id}</span>`
+      const ico = kindDef ? kindDef.ico : '';
+      const icoSlot = ico ? `<span class="kind-ico" title="${el.kind}">${ico}</span>` : `<span class="kind-ico"></span>`;
+      const metaText = isDynamic ? el.kind : el.id;
+      item.innerHTML = `<span class="tree-rail-stack">${railHtml}</span>`
+        + chevSlot
+        + icoSlot
+        + `<span class="label">${el.label}</span>`
+        + `<span class="meta">${metaText}</span>`
         + (badges ? `<span class="ovr-badges">${badges}</span>` : '');
       // Click handlers
       item.addEventListener('click', (ev) => {
@@ -869,15 +948,17 @@
         selectedLayerId = null;
         renderElementList(); renderProps(); renderPreview();
       });
-      // Right-click: group context (delete group)
+      // Right-click: dynamic-kind context (delete)
       item.addEventListener('contextmenu', (ev) => {
-        if (!isGroup) return;
+        if (!isDynamic) return;
         ev.preventDefault();
-        if (confirm('Delete group "' + el.label + '"? Children re-parent to root.')) {
-          deleteGroupNode(el.id);
+        const lbl = el.kind.charAt(0).toUpperCase() + el.kind.slice(1);
+        if (confirm('Delete ' + lbl.toLowerCase() + ' "' + el.label + '"? Children re-parent to root.')) {
+          deleteDynamicNode(el.id);
         }
       });
-      // Drag-drop: drag a node onto another to reparent / reorder
+      // Drag-drop: drag a node onto another to reparent / reorder.
+      // §D19_P4§ image / text reject "into" drops (they don't accept children).
       item.addEventListener('dragstart', (ev) => {
         ev.dataTransfer.effectAllowed = 'move';
         ev.dataTransfer.setData('text/plain', el.id);
@@ -885,26 +966,39 @@
       item.addEventListener('dragover', (ev) => {
         ev.preventDefault();
         const rect = item.getBoundingClientRect();
-        const intoZone = isGroup && (ev.clientY > rect.top + rect.height * 0.25 && ev.clientY < rect.top + rect.height * 0.75);
+        const inMiddle = (ev.clientY > rect.top + rect.height * 0.25 && ev.clientY < rect.top + rect.height * 0.75);
+        const acceptsChildren = isGroup || isButton;
+        if (inMiddle && !acceptsChildren) {
+          // Reject — leaf-style node, can't host children.
+          item.classList.add('drag-reject');
+          item.classList.remove('drag-over', 'drag-over-into');
+          ev.dataTransfer.dropEffect = 'none';
+          return;
+        }
+        const intoZone = inMiddle && acceptsChildren;
         item.classList.toggle('drag-over-into', intoZone);
         item.classList.toggle('drag-over', !intoZone);
+        item.classList.remove('drag-reject');
       });
       item.addEventListener('dragleave', () => {
         item.classList.remove('drag-over');
         item.classList.remove('drag-over-into');
+        item.classList.remove('drag-reject');
       });
       item.addEventListener('drop', (ev) => {
         ev.preventDefault();
         const draggedId = ev.dataTransfer.getData('text/plain');
         const intoZone = item.classList.contains('drag-over-into');
+        const rejected = item.classList.contains('drag-reject');
         item.classList.remove('drag-over');
         item.classList.remove('drag-over-into');
+        item.classList.remove('drag-reject');
+        if (rejected) return;
         if (!draggedId || draggedId === el.id) return;
-        if (intoZone && isGroup) {
-          // Reparent into this group
+        const acceptsChildren = isGroup || isButton;
+        if (intoZone && acceptsChildren) {
           reparentNode(draggedId, el.id);
         } else {
-          // Reorder as sibling: same parent as `el`, place before it
           const targetParent = (store[el.id] || {}).parentId || '';
           const draggedParent = (store[draggedId] || {}).parentId || '';
           if (targetParent !== draggedParent) {
@@ -915,10 +1009,16 @@
       });
       root.appendChild(item);
       if (!collapsed) {
-        node.children.forEach((c) => renderNode(c, depth + 1));
+        node.children.forEach((c, i) => {
+          const isLastSib = (i === node.children.length - 1);
+          renderNode(c, depth + 1, ancestorLastFlags.concat([isLastSib]));
+        });
       }
     }
-    tree.forEach((n) => renderNode(n, 0));
+    tree.forEach((n, i) => {
+      const isLast = (i === tree.length - 1);
+      renderNode(n, 0, []);
+    });
   }
 
   // §D19_P0§ Render parent breadcrumb in the inspector.
@@ -1029,6 +1129,59 @@
     renderLayoutSection();
     renderFlexSection();
     applyParentLayoutLockUI();
+    // §D19_P4§ Kind-aware inspector sections — hide irrelevant Style controls.
+    applyKindAwareInspector();
+  }
+
+  // §D19_P4§ Show/hide Style sub-rows based on the selected node's kind:
+  //   - group  : hide entire Style block (only layout/transform makes sense)
+  //   - button : hide Style → Background / Icon / Typography (button itself
+  //              renders nothing; visual lives in nested image/text children)
+  //   - image  : keep Background; hide Icon, Text input, Typography
+  //   - text   : keep Text input + Typography; hide Background / Icon
+  //   - leaf   : unchanged (legacy menu.* buttons)
+  function applyKindAwareInspector() {
+    const el = getElement(selectedElementId);
+    if (!el) return;
+    const k = el.kind || 'leaf';
+    const styleGroup = document.getElementById('legacy-style-group');
+    const layersSection = document.getElementById('layers-section');
+    if (!styleGroup) return;
+    // Identify the field rows by their data-prop / picker id so we can toggle.
+    const rowOf = (sel) => {
+      const node = styleGroup.querySelector(sel);
+      return node ? node.closest('.field-row') : null;
+    };
+    const labelRow = rowOf('input[data-prop="label"]');
+    const bgRow    = rowOf('#bg-picker');
+    const iconRow  = rowOf('#icon-picker');
+    const typoFold = document.getElementById('legacy-typography-fold');
+    const cpStyleRow = styleGroup.querySelector('.d19-cp-row:last-of-type');
+    const setVis = (n, vis) => { if (n) n.style.display = vis ? '' : 'none'; };
+    // Default everything visible (leaf path).
+    setVis(styleGroup, true);
+    setVis(labelRow, true); setVis(bgRow, true); setVis(iconRow, true);
+    setVis(typoFold, true); setVis(cpStyleRow, true);
+    setVis(layersSection, true);
+    if (k === 'group') {
+      setVis(styleGroup, false);
+      setVis(layersSection, false);
+    } else if (k === 'button') {
+      // Button is invisible; only transform + layout. Hide Style + Layers entirely.
+      setVis(styleGroup, false);
+      setVis(layersSection, false);
+    } else if (k === 'image') {
+      // Image: only Background field + size.
+      setVis(labelRow, false);
+      setVis(iconRow, false);
+      setVis(typoFold, false);
+      setVis(layersSection, false);
+    } else if (k === 'text') {
+      // Text: label + typography.
+      setVis(bgRow, false);
+      setVis(iconRow, false);
+      setVis(layersSection, false);
+    }
   }
 
   // §D19_P1§ Group-only Layout subsection. Direction (free/vert/horiz/grid),
@@ -2125,6 +2278,13 @@
     (function bindHierarchyToolbar() {
       const addG = document.getElementById('btn-add-group');
       if (addG) addG.addEventListener('click', createGroupNode);
+      // §D19_P4§ Composable node toolbar buttons.
+      const addB = document.getElementById('btn-add-button');
+      if (addB) addB.addEventListener('click', createButtonNode);
+      const addI = document.getElementById('btn-add-image');
+      if (addI) addI.addEventListener('click', createImageNode);
+      const addT = document.getElementById('btn-add-text');
+      if (addT) addT.addEventListener('click', createTextNode);
       const reparentRoot = document.getElementById('btn-reparent-root');
       if (reparentRoot) reparentRoot.addEventListener('click', () => {
         if (selectedElementId) reparentNode(selectedElementId, null);
