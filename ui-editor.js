@@ -25,7 +25,7 @@
   // Multi-slot model: each section in the inspector copies/pastes its own
   // scope independently. The element-wide pair at the bottom of the pane
   // copies/pastes everything as one slot ('full').
-  const SCOPES = ['position', 'style', 'perCourse', 'full'];
+  const SCOPES = ['position', 'size', 'style', 'perCourse', 'full'];
   let clipboards = loadClipboards();
 
   function _emptyClipboards() {
@@ -91,18 +91,30 @@
     const cOvr = scopeCourseId ? (getOverride(el.id, scopeCourseId) || {}) : {};
     return { ...gOvr, ...cOvr };
   }
+  // Position copy = x / y (and xRel if present). Always copies the *effective*
+  // values (override OR code default) so user can paste between elements
+  // even when the source has no override yet — fixes the "Nothing to copy"
+  // dead-end on default-state elements.
   function copyPosition() {
     const el = getElement(selectedElementId); if (!el) return;
+    const props = effectiveProps(el);
     const merged = _effectiveMerged(el);
-    const data = {};
-    ['x', 'y', 'xRel', 'w', 'h', 'lockAspect'].forEach((k) => {
-      if (k in merged) data[k] = merged[k];
-    });
-    if (!Object.keys(data).length) {
-      flashToast('Nothing to copy — no position/size override', 'error'); return;
-    }
+    const data = { x: Math.round(props.x), y: Math.round(props.y) };
+    // xRel only when set explicitly — pasting xRel onto a target re-anchors
+    // it to canvas center; pasting absolute x keeps the literal offset.
+    if (Number.isFinite(Number(merged.xRel))) data.xRel = Number(merged.xRel);
     _setSlot('position', data);
-    flashToast('Copied position & size from ' + el.label, 'success');
+    flashToast('Copied position from ' + el.label, 'success');
+  }
+  // Size copy = w / h (and lockAspect if true). Effective values, same idea.
+  function copySize() {
+    const el = getElement(selectedElementId); if (!el) return;
+    const props = effectiveProps(el);
+    const merged = _effectiveMerged(el);
+    const data = { w: Math.round(props.w), h: Math.round(props.h) };
+    if (merged.lockAspect) data.lockAspect = true;
+    _setSlot('size', data);
+    flashToast('Copied size from ' + el.label, 'success');
   }
   function copyStyle() {
     const el = getElement(selectedElementId); if (!el) return;
@@ -119,9 +131,9 @@
         if (k in merged) data[k] = merged[k];
       });
     }
-    if (!Object.keys(data).length) {
-      flashToast('Nothing to copy — no style override', 'error'); return;
-    }
+    // Style copy succeeds even on default-state elements so user can transfer
+    // between targets. Empty payload = "match defaults" — paste will clear
+    // overrides on target.
     _setSlot('style', data);
     flashToast('Copied style from ' + el.label, 'success');
   }
@@ -139,10 +151,15 @@
   }
   function copyFull() {
     const el = getElement(selectedElementId); if (!el) return;
-    const merged = _effectiveMerged(el);
-    if (!Object.keys(merged).length) {
-      flashToast('Nothing to copy — element has no overrides', 'error'); return;
-    }
+    // Effective merge: union of overrides AND code defaults so paste-between-
+    // elements works even when the source has no override yet.
+    const props = effectiveProps(el);
+    const ovrMerged = _effectiveMerged(el);
+    const merged = {
+      x: Math.round(props.x), y: Math.round(props.y),
+      w: Math.round(props.w), h: Math.round(props.h),
+      ...ovrMerged
+    };
     _setSlot('full', merged);
     flashToast('Copied ' + el.label, 'success');
   }
@@ -179,8 +196,18 @@
   function pastePosition() {
     const slot = clipboards.position; if (!slot) return;
     const el = getElement(selectedElementId); if (!el) return;
+    // Position-only — never touches w/h. xRel paste re-anchors center;
+    // explicit drop ensures stale absolute x doesn't survive.
+    const patch = { ...slot.data };
+    if ('xRel' in patch) delete patch.x; // xRel wins; absolute x is derived
+    _writeOverrideMerged(el, patch);
+    flashToast('Pasted position onto ' + el.label, 'success');
+  }
+  function pasteSize() {
+    const slot = clipboards.size; if (!slot) return;
+    const el = getElement(selectedElementId); if (!el) return;
     _writeOverrideMerged(el, slot.data);
-    flashToast('Pasted position & size onto ' + el.label, 'success');
+    flashToast('Pasted size onto ' + el.label, 'success');
   }
   function pasteStyle() {
     const slot = clipboards.style; if (!slot) return;
@@ -219,6 +246,7 @@
     // For each scope, toggle visibility + update source caption.
     const cfg = [
       { scope: 'position', pasteId: 'btn-paste-position', capId: 'cap-position' },
+      { scope: 'size',     pasteId: 'btn-paste-size',     capId: 'cap-size' },
       { scope: 'style',    pasteId: 'btn-paste-style',    capId: 'cap-style' },
       { scope: 'perCourse',pasteId: 'btn-paste-percourse',capId: 'cap-percourse' },
       { scope: 'full',     pasteId: 'btn-paste-full',     capId: 'cap-full' }
@@ -1606,6 +1634,8 @@
     const wire = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener('click', fn); };
     wire('btn-copy-position',   copyPosition);
     wire('btn-paste-position',  pastePosition);
+    wire('btn-copy-size',       copySize);
+    wire('btn-paste-size',      pasteSize);
     wire('btn-copy-style',      copyStyle);
     wire('btn-paste-style',     pasteStyle);
     wire('btn-copy-percourse',  copyPerCourse);
