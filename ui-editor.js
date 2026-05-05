@@ -443,8 +443,40 @@
   // button if they aren't already in the store, AND auto-decompose any
   // legacy single-leaf override (background/icon/label fields directly on
   // the parent id) into the new tree. Idempotent.
+  // §D19_P6_SEED_V§ Schema version for SCREENS seedChildren defaults.
+  // Bump this when seed positions / sprite keys change so existing stores
+  // get re-seeded ONCE (preserving user customizations is sacrificed for
+  // correctness — user can re-edit faster than a button can stay broken).
+  const SEED_SCHEMA_VERSION = 2;
+
   function migrateLegacyLeaves() {
     let changed = false;
+    // Force re-seed of composite child positions when version is behind.
+    // We delete the seed-suffix entries (.bg/.icon/.text/.on/.off) for each
+    // listed SCREENS button so the regular seeding path recreates them
+    // with the current SCREENS positions. We never touch user-created
+    // children that don't match a seed suffix.
+    const _curV = Number(store._uiSeedV) || 0;
+    if (_curV < SEED_SCHEMA_VERSION) {
+      for (const screen of SCREENS) {
+        for (const el of screen.elements) {
+          if (!el.seedChildren) continue;
+          for (const sc of el.seedChildren) {
+            const cid = el.id + '.' + sc.suffix;
+            if (store[cid]) { delete store[cid]; changed = true; }
+            // Drop grandchildren too (toggle .on/.off children).
+            if (Array.isArray(sc.grandchildren)) {
+              for (const gc of sc.grandchildren) {
+                const gid = cid + '.' + gc.suffix;
+                if (store[gid]) { delete store[gid]; changed = true; }
+              }
+            }
+          }
+        }
+      }
+      store._uiSeedV = SEED_SCHEMA_VERSION;
+      changed = true;
+    }
     for (const screen of SCREENS) {
       for (const el of screen.elements) {
         // §D19_P6§ Toggle migration path (used by menu.soundToggle: P5→P6).
