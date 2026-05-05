@@ -227,7 +227,25 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const obj = raw ? JSON.parse(raw) : {};
-      return obj && typeof obj === 'object' ? obj : {};
+      const store = obj && typeof obj === 'object' ? obj : {};
+      // Migrate: any entry with absolute x but no xRel gets xRel computed
+      // against design W=680 so live game (dynamic W) keeps composition
+      // centered. Idempotent — re-runs are no-ops once xRel is present.
+      let migrated = false;
+      for (const k in store) {
+        const v = store[k];
+        if (v && typeof v === 'object' && Number.isFinite(Number(v.x)) && !Number.isFinite(Number(v.xRel))) {
+          v.xRel = Number(v.x) - W / 2;
+          migrated = true;
+        }
+      }
+      if (migrated) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+          localStorage.setItem('gpc_ui_overrides_updated_at', String(Date.now()));
+        } catch (_) {}
+      }
+      return store;
     } catch (_) { return {}; }
   }
   function saveStore() {
@@ -271,6 +289,11 @@
   function getOverride(id, courseId) { return store[keyFor(id, courseId)] || null; }
   function patchOverride(id, courseId, patch) {
     const k = keyFor(id, courseId);
+    // Keep xRel in sync with x (design-W=680 anchored at canvas center).
+    // game.js prefers xRel so live (wider W) stays centered.
+    if (patch && Number.isFinite(Number(patch.x)) && !('xRel' in patch)) {
+      patch = { ...patch, xRel: Number(patch.x) - W / 2 };
+    }
     store[k] = { ...(store[k] || {}), ...patch };
     markDirty();
     saveStore();
