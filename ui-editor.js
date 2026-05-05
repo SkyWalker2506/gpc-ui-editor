@@ -569,6 +569,7 @@
     setVal('input[data-prop="y"]', Math.round(props.y));
     setVal('input[data-prop="w"]', Math.round(props.w));
     setVal('input[data-prop="h"]', Math.round(props.h));
+    setVal('input[data-prop="label"]', typeof props.label === 'string' ? props.label : '');
     setVal('input[data-flag="hidden"]', props.hidden);
     setVal('input[data-flag="lockAspect"]', props.lockAspect);
     setPickerValue('background', props.background);
@@ -1019,8 +1020,8 @@
       clr.style.display = '';
     } else {
       thumb.classList.add('empty');
-      name.textContent = '(none — using in-code default)';
-      if (sub) sub.textContent = '';
+      name.textContent = 'Default sprite';
+      if (sub) sub.textContent = 'Click to override';
       clr.style.display = 'none';
     }
     // Highlight the selected cell in the open popover.
