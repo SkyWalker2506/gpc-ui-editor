@@ -8,7 +8,12 @@
   'use strict';
 
   const STORAGE_KEY = 'gpc_ui_overrides';
-  const CLIPBOARD_KEY = 'gpc_ui_clipboard';
+  // §D19§ Migrated from single-slot 'gpc_ui_clipboard' to multi-slot
+  // 'gpc_ui_clipboards'. Slots: position | style | perCourse | full.
+  // Each slot holds: { data, sourceId, sourceLabel, sourceCourse, ts }
+  // Paste buttons for a slot are hidden when slot === null.
+  const CLIPBOARD_KEY = 'gpc_ui_clipboards';
+  const LEGACY_CLIPBOARD_KEY = 'gpc_ui_clipboard';
   // Game canvas in game.js: H=540, W defaults to 680 (design base — see
   // project_canvas_constants memory). Preview MUST match exactly so absolute
   // pixel x/y overrides render at the same screen position in both surfaces.
@@ -16,121 +21,225 @@
   // off to the right in game because game W=680 made W/2 = 340 not 320).
   const W = 680, H = 540;
 
-  // ----- Style clipboard -----
-  // In-memory clipboard mirrored to localStorage so it survives reloads + is
-  // shared across ui-editor tabs (storage event below). Shape:
-  //   { override: {…overridesMinusXY…}, hadPosition: bool, x, y, sourceId, sourceLabel, ts }
-  let clipboard = loadClipboard();
-  function loadClipboard() {
+  // ----- Per-section clipboards -----
+  // Multi-slot model: each section in the inspector copies/pastes its own
+  // scope independently. The element-wide pair at the bottom of the pane
+  // copies/pastes everything as one slot ('full').
+  const SCOPES = ['position', 'style', 'perCourse', 'full'];
+  let clipboards = loadClipboards();
+
+  function _emptyClipboards() {
+    return { position: null, style: null, perCourse: null, full: null };
+  }
+  function loadClipboards() {
+    const out = _emptyClipboards();
     try {
       const raw = localStorage.getItem(CLIPBOARD_KEY);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      return obj && typeof obj === 'object' && obj.override ? obj : null;
-    } catch (_) { return null; }
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object') {
+          SCOPES.forEach((k) => { if (obj[k]) out[k] = obj[k]; });
+          return out;
+        }
+      }
+    } catch (_) {}
+    // Migration: read legacy single-slot 'gpc_ui_clipboard' as 'full'.
+    try {
+      const legacy = localStorage.getItem(LEGACY_CLIPBOARD_KEY);
+      if (legacy) {
+        const obj = JSON.parse(legacy);
+        if (obj && typeof obj === 'object' && obj.override) {
+          const merged = { ...obj.override };
+          if (typeof obj.x === 'number') merged.x = obj.x;
+          if (typeof obj.y === 'number') merged.y = obj.y;
+          if (typeof obj.w === 'number') merged.w = obj.w;
+          if (typeof obj.h === 'number') merged.h = obj.h;
+          out.full = {
+            data: merged,
+            sourceId: obj.sourceId || '',
+            sourceLabel: obj.sourceLabel || '',
+            sourceCourse: '',
+            ts: obj.ts || Date.now()
+          };
+          // keep legacy key around so older tabs still work; new writes go to multi-slot.
+        }
+      }
+    } catch (_) {}
+    return out;
   }
-  function saveClipboard(obj) {
-    try { localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(obj)); }
-    catch (e) { console.error('[ui-editor] clipboard save', e); }
+  function saveClipboards() {
+    try { localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(clipboards)); }
+    catch (e) { console.error('[ui-editor] clipboards save', e); }
   }
-  function clearClipboardStorage() {
-    try { localStorage.removeItem(CLIPBOARD_KEY); } catch (_) {}
-  }
-  function copyStyleFromSelected() {
+  function _deepClone(v) { try { return JSON.parse(JSON.stringify(v)); } catch (_) { return v; } }
+  function _setSlot(scope, data) {
     const el = getElement(selectedElementId);
-    if (!el) return;
-    // Capture the FULL effective override that the active scope sees — merge
-    // global ← per-course so paste preserves whatever the user is looking at.
-    const gOvr = getOverride(el.id, '') || {};
-    const cOvr = scopeCourseId ? (getOverride(el.id, scopeCourseId) || {}) : {};
-    const merged = { ...gOvr, ...cOvr };
-    if (!Object.keys(merged).length) {
-      flashToast('Nothing to copy — element has no overrides', 'error');
-      return;
-    }
-    const hadPosition = ('x' in merged) || ('y' in merged);
-    const hadSize = ('w' in merged) || ('h' in merged);
-    const x = merged.x, y = merged.y;
-    const w = merged.w, h = merged.h;
-    const stripped = { ...merged };
-    delete stripped.x; delete stripped.y;
-    delete stripped.w; delete stripped.h;
-    // Deep-clone layers so later edits to the source don't mutate clipboard.
-    if (Array.isArray(stripped.layers)) {
-      try { stripped.layers = JSON.parse(JSON.stringify(stripped.layers)); } catch (_) {}
-    }
-    clipboard = {
-      override: stripped,
-      hadPosition,
-      hadSize,
-      x: typeof x === 'number' ? x : null,
-      y: typeof y === 'number' ? y : null,
-      w: typeof w === 'number' ? w : null,
-      h: typeof h === 'number' ? h : null,
-      sourceId: el.id,
-      sourceLabel: el.label,
+    clipboards[scope] = {
+      data: _deepClone(data),
+      sourceId: el ? el.id : '',
+      sourceLabel: el ? el.label : '',
+      sourceCourse: scopeCourseId || '',
       ts: Date.now()
     };
-    saveClipboard(clipboard);
+    saveClipboards();
     refreshClipboardUI();
-    flashToast('Copied ' + el.label + ' style', 'success');
   }
-  function pasteStyleOntoSelected() {
-    if (!clipboard || !clipboard.override) {
-      flashToast('Clipboard is empty', 'error');
-      return;
+
+  // ----- Per-section copy implementations -----
+  function _effectiveMerged(el) {
+    const gOvr = getOverride(el.id, '') || {};
+    const cOvr = scopeCourseId ? (getOverride(el.id, scopeCourseId) || {}) : {};
+    return { ...gOvr, ...cOvr };
+  }
+  function copyPosition() {
+    const el = getElement(selectedElementId); if (!el) return;
+    const merged = _effectiveMerged(el);
+    const data = {};
+    ['x', 'y', 'xRel', 'w', 'h', 'lockAspect'].forEach((k) => {
+      if (k in merged) data[k] = merged[k];
+    });
+    if (!Object.keys(data).length) {
+      flashToast('Nothing to copy — no position/size override', 'error'); return;
     }
-    const el = getElement(selectedElementId);
-    if (!el) return;
-    const existing = getOverride(el.id, scopeCourseId);
-    if (existing && Object.keys(existing).length) {
-      if (!confirm(el.label + ' already has overrides in this scope. Replace style with clipboard?')) return;
-    }
-    const includePos = !!document.getElementById('copy-include-pos')?.checked;
-    const includeSize = !!document.getElementById('copy-include-size')?.checked;
-    // Merge: keep current x/y unless includePos. Replace everything else.
-    const cur = getOverride(el.id, scopeCourseId) || {};
-    const next = { ...cur, ...clipboard.override };
-    // Deep-clone layers from clipboard so mutating the target doesn't taint it.
-    if (Array.isArray(next.layers)) {
-      try { next.layers = JSON.parse(JSON.stringify(next.layers)); } catch (_) {}
-    }
-    if (includePos) {
-      if (clipboard.x != null) next.x = clipboard.x;
-      if (clipboard.y != null) next.y = clipboard.y;
+    _setSlot('position', data);
+    flashToast('Copied position & size from ' + el.label, 'success');
+  }
+  function copyStyle() {
+    const el = getElement(selectedElementId); if (!el) return;
+    const merged = _effectiveMerged(el);
+    const data = {};
+    if (Array.isArray(merged.layers) && merged.layers.length) {
+      // Layers mode: capture layers + label only (style fields are ignored
+      // by the renderer when layers are present, so they're not part of
+      // "style" in this scope). Pasting onto a legacy target switches it.
+      data.layers = _deepClone(merged.layers);
+      if ('label' in merged) data.label = merged.label;
     } else {
-      // Preserve the target's current position explicitly.
-      if (cur.x != null) next.x = cur.x; else delete next.x;
-      if (cur.y != null) next.y = cur.y; else delete next.y;
+      ['label', 'background', 'icon', 'fontSize', 'color', 'fontFamily', 'fontWeight'].forEach((k) => {
+        if (k in merged) data[k] = merged[k];
+      });
     }
-    if (includeSize) {
-      if (clipboard.w != null) next.w = clipboard.w;
-      if (clipboard.h != null) next.h = clipboard.h;
+    if (!Object.keys(data).length) {
+      flashToast('Nothing to copy — no style override', 'error'); return;
+    }
+    _setSlot('style', data);
+    flashToast('Copied style from ' + el.label, 'success');
+  }
+  function copyPerCourse() {
+    const el = getElement(selectedElementId); if (!el) return;
+    if (!scopeCourseId) {
+      flashToast('Switch to a course scope to copy per-course override', 'error'); return;
+    }
+    const ovr = getOverride(el.id, scopeCourseId);
+    if (!ovr || !Object.keys(ovr).length) {
+      flashToast('Nothing to copy — no per-course override on this scope', 'error'); return;
+    }
+    _setSlot('perCourse', ovr);
+    flashToast('Copied per-course override from ' + el.label, 'success');
+  }
+  function copyFull() {
+    const el = getElement(selectedElementId); if (!el) return;
+    const merged = _effectiveMerged(el);
+    if (!Object.keys(merged).length) {
+      flashToast('Nothing to copy — element has no overrides', 'error'); return;
+    }
+    _setSlot('full', merged);
+    flashToast('Copied ' + el.label, 'success');
+  }
+
+  // ----- Per-section paste implementations -----
+  // All paste paths funnel through _writeOverrideMerged so undo/dirty/save
+  // stay consistent. `mode` is 'merge' (keep target's other fields) or
+  // 'replace' (full overwrite).
+  function _writeOverrideMerged(el, patch, opts) {
+    const courseScope = opts && opts.courseScope != null ? opts.courseScope : scopeCourseId;
+    const cur = getOverride(el.id, courseScope) || {};
+    let next;
+    if (opts && opts.replace) {
+      next = _deepClone(patch);
     } else {
-      if (cur.w != null) next.w = cur.w; else delete next.w;
-      if (cur.h != null) next.h = cur.h; else delete next.h;
+      next = { ...cur, ..._deepClone(patch) };
+      // Cross-mode style paste: if patch.layers, drop legacy style fields
+      // on target so the renderer respects layers (and vice versa).
+      if (Array.isArray(patch.layers)) {
+        ['background', 'icon', 'fontSize', 'color', 'fontFamily', 'fontWeight'].forEach((k) => { delete next[k]; });
+      } else if (patch.layers === null || (opts && opts.dropLayers)) {
+        delete next.layers;
+      }
     }
-    // Replace whole-store entry so removed keys (e.g. icon cleared in source)
-    // also drop. patchOverride only merges — for paste we want full replace.
     if (undo) undo.recordBefore();
-    store[keyFor(el.id, scopeCourseId)] = next;
+    if (Object.keys(next).length) store[keyFor(el.id, courseScope)] = next;
+    else delete store[keyFor(el.id, courseScope)];
     markDirty();
     saveStoreSilent();
     if (undo) undo.commit();
     selectedLayerId = null;
     renderElementList(); renderProps(); renderPreview();
+  }
+  function pastePosition() {
+    const slot = clipboards.position; if (!slot) return;
+    const el = getElement(selectedElementId); if (!el) return;
+    _writeOverrideMerged(el, slot.data);
+    flashToast('Pasted position & size onto ' + el.label, 'success');
+  }
+  function pasteStyle() {
+    const slot = clipboards.style; if (!slot) return;
+    const el = getElement(selectedElementId); if (!el) return;
+    // Cross-mode: patch may carry { layers } or legacy style fields. The
+    // renderer in game.js + ui-button-render.js respects layers when present
+    // and falls back to legacy fields otherwise — so writing layers onto a
+    // legacy target (or vice versa) switches the target's mode automatically.
+    _writeOverrideMerged(el, slot.data);
+    flashToast('Pasted style onto ' + el.label, 'success');
+  }
+  function pastePerCourse() {
+    const slot = clipboards.perCourse; if (!slot) return;
+    const el = getElement(selectedElementId); if (!el) return;
+    if (!scopeCourseId) {
+      flashToast('Switch to a course scope before pasting per-course override', 'error'); return;
+    }
+    _writeOverrideMerged(el, slot.data, { replace: true, courseScope: scopeCourseId });
+    flashToast('Pasted per-course override onto ' + el.label, 'success');
+  }
+  function pasteFull() {
+    const slot = clipboards.full; if (!slot) return;
+    const el = getElement(selectedElementId); if (!el) return;
+    const existing = getOverride(el.id, scopeCourseId);
+    if (existing && Object.keys(existing).length) {
+      if (!confirm(el.label + ' already has overrides in this scope. Replace with clipboard?')) return;
+    }
+    _writeOverrideMerged(el, slot.data, { replace: true });
     flashToast('Pasted onto ' + el.label, 'success');
   }
+  // Keyboard shortcuts wire to the element-wide pair.
+  function copyStyleFromSelected() { copyFull(); }
+  function pasteStyleOntoSelected() { pasteFull(); }
+
   function refreshClipboardUI() {
-    const pasteBtn = document.getElementById('btn-paste-style');
-    const status = document.getElementById('clipboard-status');
-    const has = !!(clipboard && clipboard.override);
-    if (pasteBtn) pasteBtn.disabled = !has;
-    if (status) {
-      status.textContent = has
-        ? `Clipboard: ${clipboard.sourceLabel || clipboard.sourceId} (${Object.keys(clipboard.override).length} keys${clipboard.hadPosition ? ', +pos' : ''})`
-        : 'Clipboard: empty';
-    }
+    // For each scope, toggle visibility + update source caption.
+    const cfg = [
+      { scope: 'position', pasteId: 'btn-paste-position', capId: 'cap-position' },
+      { scope: 'style',    pasteId: 'btn-paste-style',    capId: 'cap-style' },
+      { scope: 'perCourse',pasteId: 'btn-paste-percourse',capId: 'cap-percourse' },
+      { scope: 'full',     pasteId: 'btn-paste-full',     capId: 'cap-full' }
+    ];
+    cfg.forEach((c) => {
+      const slot = clipboards[c.scope];
+      const pBtn = document.getElementById(c.pasteId);
+      const cap = document.getElementById(c.capId);
+      const has = !!slot;
+      if (pBtn) pBtn.style.display = has ? '' : 'none';
+      if (cap) {
+        if (has) {
+          const where = slot.sourceCourse ? ' · C' + slot.sourceCourse : '';
+          cap.textContent = 'Copied from ' + (slot.sourceLabel || slot.sourceId || '?') + where;
+          cap.style.display = '';
+        } else {
+          cap.textContent = '';
+          cap.style.display = 'none';
+        }
+      }
+    });
   }
 
   // ----- Icon catalog -----
@@ -589,6 +698,8 @@
     if (courseSel && document.activeElement !== courseSel) courseSel.value = scopeCourseId;
     // Refresh layers panel for the newly-selected element.
     renderLayersPanel();
+    // §D19§ Re-evaluate per-section paste visibility (cheap; no-op if DOM unchanged).
+    refreshClipboardUI();
   }
 
   // §WYSIWYG§ Notify the embedded game iframe which UI element is currently
@@ -1489,17 +1600,24 @@
       setTimeout(() => { if (loading) loading.classList.add('hidden'); }, 4000);
     })();
 
-    // Copy / Paste style buttons
-    const cBtn = document.getElementById('btn-copy-style');
-    const pBtn = document.getElementById('btn-paste-style');
-    if (cBtn) cBtn.addEventListener('click', copyStyleFromSelected);
-    if (pBtn) pBtn.addEventListener('click', pasteStyleOntoSelected);
+    // §D19§ Per-section Copy/Paste pairs. Each section's pair targets its
+    // own slot in the multi-slot clipboards object. Paste hidden by default
+    // and revealed by refreshClipboardUI() when its scope's slot is non-null.
+    const wire = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener('click', fn); };
+    wire('btn-copy-position',   copyPosition);
+    wire('btn-paste-position',  pastePosition);
+    wire('btn-copy-style',      copyStyle);
+    wire('btn-paste-style',     pasteStyle);
+    wire('btn-copy-percourse',  copyPerCourse);
+    wire('btn-paste-percourse', pastePerCourse);
+    wire('btn-copy-full',       copyFull);
+    wire('btn-paste-full',      pasteFull);
     refreshClipboardUI();
 
-    // Cross-tab sync: another ui-editor tab copied → enable our paste button.
+    // Cross-tab sync: another ui-editor tab copied → reload + re-evaluate.
     window.addEventListener('storage', (ev) => {
-      if (ev.key !== CLIPBOARD_KEY) return;
-      clipboard = loadClipboard();
+      if (ev.key !== CLIPBOARD_KEY && ev.key !== LEGACY_CLIPBOARD_KEY) return;
+      clipboards = loadClipboards();
       refreshClipboardUI();
     });
 
