@@ -902,3 +902,11 @@
     margin-right: 6px;
     user-select: none;
   }
+
+  /* §D19_P13§ Templates panel */
+  .el-templates { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; }
+  .tpl-header { font: 700 10px Fredoka, sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 4px 8px 2px; }
+  .tpl-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; cursor: pointer; border-radius: 6px; gap: 6px; }
+  .tpl-row:hover, .tpl-row.active { background: var(--accent-soft); }
+  .tpl-name { font: 600 11px Fredoka, sans-serif; color: var(--fg); flex: 1; }
+  .tpl-count { font: 400 10px Fredoka, sans-serif; color: var(--muted); white-space: nowrap; }
