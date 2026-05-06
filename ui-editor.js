@@ -970,8 +970,24 @@
           store[el.id] = base;
           changed = true;
         } else if (!parent.kind) {
-          store[el.id] = { ...parent, kind: 'button', action: parent.action || el.action || '' };
+          // §P25-FIX§ Merge defaults BEFORE existing parent fields so we get
+          // anchor/x/y/w/h, but parent's user-edited values still win.
+          const base = { kind: 'button', action: el.action || '' };
+          if (el.defaults) Object.assign(base, el.defaults);
+          store[el.id] = { ...base, ...parent, kind: 'button', action: parent.action || el.action || '' };
           changed = true;
+        } else if (parent.kind === 'button' && el.defaults) {
+          // §P25-FIX§ Existing button parents that lack w/h (zero-size from
+          // older migration) — backfill missing dimension fields from defaults.
+          const need = ['x','y','w','h','anchorMin','anchorMax','pivot'];
+          let touched = false;
+          for (const k of need) {
+            if (parent[k] == null && el.defaults[k] != null) {
+              parent[k] = JSON.parse(JSON.stringify(el.defaults[k]));
+              touched = true;
+            }
+          }
+          if (touched) changed = true;
         }
         for (const sc of el.seedChildren) {
           const cid = el.id + '.' + sc.suffix;
@@ -994,7 +1010,13 @@
           if (!el.template || !screen.templates[el.template]) continue;
           const tmpl = screen.templates[el.template];
           if (!store[el.id]) {
-            store[el.id] = { kind: tmpl.kind || 'button', action: el.action || '', _template: el.template };
+            // §P25-FIX§ Carry per-instance position/size + anchor onto the
+            // template-spawned entry so the inspector doesn't show 0×0.
+            const inst = { kind: tmpl.kind || 'button', action: el.action || '', _template: el.template };
+            ['x','y','w','h','anchorMin','anchorMax','pivot','levelNum'].forEach((k) => {
+              if (el[k] != null) inst[k] = JSON.parse(JSON.stringify(el[k]));
+            });
+            store[el.id] = inst;
             changed = true;
           }
           for (const sc of (tmpl.seedChildren || [])) {
