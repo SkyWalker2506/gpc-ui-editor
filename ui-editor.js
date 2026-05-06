@@ -343,10 +343,10 @@
       elements: [
         // Non-button visuals — center-top anchored so they stay centered at any W.
         // x=0 means "center of element aligns with anchor point (W/2)".
-        { id: 'menu.title',       label: 'GOLF! title',   kind: 'leaf',
+        { id: 'menu.title',       label: 'GOLF! title',   kind: 'text', // §P15-FIX-2§ was 'leaf'; text kind hides sprite pickers (bg/icon) for canvas-drawn title
           defaults: { x: 0, y: 67, w: 224, h: 86,
                       anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } } },
-        { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'leaf',
+        { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'image', // §P15-FIX-3§ was 'leaf'; image kind hides label/icon/typo for sprite-only mascot
           defaults: { x: 0, y: 186, w: 48, h: 56,
                       anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } } },
         // Composable buttons — parent is invisible, children render.
