@@ -428,12 +428,204 @@
         }
       ]
     },
+    // §D19_P13§ Level Complete screen — decomposes drawComplete() elements.
+    {
+      id: 'complete', label: 'Level Complete',
+      bg: 'complete',
+      elements: [
+        // Paper card background — center-anchored
+        { id: 'complete.card',       label: 'Result card bg', kind: 'image',
+          defaults: { x: 0, y: 218, w: 430, h: 250,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0.5 } } },
+        // "Nice Shot!" headline — dynamic based on stars
+        { id: 'complete.title',      label: 'Result headline', kind: 'text',
+          defaults: { x: 0, y: 140, w: 380, h: 36,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0.5 },
+                      fontSize: 24, fontFamily: 'Bungee, Fredoka, sans-serif', color: '#7CAE50', textAlign: 'center',
+                      boundVar: 'resultTitle' } },
+        // "Level name · N shots" subtitle
+        { id: 'complete.subtitle',   label: 'Level name + shots', kind: 'text',
+          defaults: { x: 0, y: 172, w: 380, h: 24,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0.5 },
+                      fontSize: 14, color: '#2A1C0E', textAlign: 'center',
+                      boundVar: 'levelNameShots' } },
+        // Stars row — 3 image children
+        { id: 'complete.star1',      label: 'Star 1', kind: 'image',
+          defaults: { x: -78, y: 218, w: 52, h: 52,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0.5 } } },
+        { id: 'complete.star2',      label: 'Star 2', kind: 'image',
+          defaults: { x: 0,   y: 218, w: 56, h: 56,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0.5 } } },
+        { id: 'complete.star3',      label: 'Star 3', kind: 'image',
+          defaults: { x: 78,  y: 218, w: 52, h: 52,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0.5 } } },
+        // Coin reward row
+        { id: 'complete.coinReward', label: 'Coin reward', kind: 'button', action: '',
+          defaults: { x: -80, y: 270, w: 140, h: 32,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
+          seedChildren: [
+            { suffix: 'icon', kind: 'image', label: 'Coin icon', background: 'ui-coin-icon', x: 4,  y: 6, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '+40', boundVar: 'coinsEarned', x: 30, y: 0, w: 106, h: 32, fontSize: 16, color: '#2A1C0E', textAlign: 'left' }
+          ]
+        },
+        // Gem reward row
+        { id: 'complete.gemReward',  label: 'Gem reward', kind: 'button', action: '',
+          defaults: { x: 80,  y: 270, w: 140, h: 32,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
+          seedChildren: [
+            { suffix: 'icon', kind: 'image', label: 'Gem icon', background: 'ui-gem-icon', x: 4,  y: 6, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '+1', boundVar: 'gemsEarned', x: 30, y: 0, w: 106, h: 32, fontSize: 16, color: '#2A1C0E', textAlign: 'left' }
+          ]
+        },
+        // Watch Ad button (full-width)
+        { id: 'complete.adBtn',      label: 'Watch Ad button', kind: 'button', action: 'ad:watchAndDouble',
+          defaults: { x: 0, y: 362, w: 290, h: 40,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Ad bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 290, h: 40 },
+            { suffix: 'icon', kind: 'image', label: 'Play icon', background: 'ui-play-icon',   x: 12, y: 8, w: 24,  h: 24 },
+            { suffix: 'text', kind: 'text',  label: 'Watch Ad · 2x coins + 1 gem', x: 44, y: 0, w: 240, h: 40, fontSize: 13, color: '#2A1C0E', textAlign: 'left' }
+          ]
+        },
+        // Bottom row: Menu / Retry / Next
+        { id: 'complete.menuBtn',    label: 'Menu button', kind: 'button', action: 'goto:select',
+          defaults: { x: -205, y: 430, w: 110, h: 40,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Menu bg',   background: 'ui-button-paper', x: 0, y: 0, w: 110, h: 40 },
+            { suffix: 'text', kind: 'text',  label: 'Menu',      x: 0, y: 0, w: 110, h: 40, fontSize: 13, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'complete.retryBtn',   label: 'Retry button', kind: 'button', action: 'level:restart',
+          defaults: { x: -70, y: 430, w: 140, h: 40,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Retry bg',   background: 'ui-button-paper', x: 0, y: 0, w: 140, h: 40 },
+            { suffix: 'text', kind: 'text',  label: 'Retry',      x: 0, y: 0, w: 140, h: 40, fontSize: 13, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'complete.nextBtn',    label: 'Next button', kind: 'button', action: 'level:next',
+          defaults: { x: 95, y: 430, w: 110, h: 40,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Next bg',   background: 'ui-button-paper', x: 0,  y: 0,  w: 110, h: 40 },
+            { suffix: 'icon', kind: 'image', label: 'Next icon', background: 'ui-play-icon',    x: 80, y: 10, w: 20,  h: 20 },
+            { suffix: 'text', kind: 'text',  label: 'Next',      x: 0,  y: 0,  w: 78,  h: 40, fontSize: 13, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        }
+      ]
+    },
+    // §D19_P13§ Level Select screen — decomposes drawSelect() / drawLevelTile().
+    // perCourse: true means the 'select' screen changes visuals per course.
+    // templates: named visual blueprints shared by the 18 hole instances.
+    {
+      id: 'select', label: 'Level Select',
+      bg: 'select',
+      perCourse: true,
+      // §D19_P13§ TEMPLATES: per-course shared visual blueprints.
+      // seedChildren carry {course} placeholder in background keys.
+      // The renderer resolves {course} → actual course index+1 at draw time.
+      // "template" entries in elements[] expand seedChildren into virtual
+      // child entries scoped to each instance id (e.g. select.hole1.bg).
+      templates: {
+        holeCircle: {
+          label: 'Hole circle (all 18)',
+          kind: 'button',
+          seedChildren: [
+            { suffix: 'bg',    kind: 'image', label: 'Circle bg',  background: 'ui-level-node-unlocked', w: 68, h: 42 },
+            { suffix: 'num',   kind: 'text',  label: '?',    boundVar: 'levelNum',   x: 0,  y: 0,  w: 68, h: 36, fontSize: 18, color: '#FFF8E8', textAlign: 'center' },
+            { suffix: 'star1', kind: 'image', label: 'Star 1', background: 'ui-star-filled', x: 6,  y: 30, w: 14, h: 14 },
+            { suffix: 'star2', kind: 'image', label: 'Star 2', background: 'ui-star-filled', x: 27, y: 30, w: 14, h: 14 },
+            { suffix: 'star3', kind: 'image', label: 'Star 3', background: 'ui-star-filled', x: 48, y: 30, w: 14, h: 14 }
+          ]
+        }
+      },
+      elements: [
+        // Top-left "Courses" back button
+        { id: 'select.coursesBtn', label: 'Courses back', kind: 'button', action: 'goto:courses',
+          defaults: { x: 12, y: 12, w: 70, h: 32,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Courses bg',   background: 'ui-button-paper', x: 0, y: 0, w: 70, h: 32 },
+            { suffix: 'text', kind: 'text',  label: 'Courses',      x: 0, y: 0, w: 70, h: 32, fontSize: 14, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        // Top-center course title banner
+        { id: 'select.courseTitle', label: 'Course title', kind: 'text',
+          defaults: { x: 0, y: 20, w: 320, h: 28,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 },
+                      fontSize: 16, color: '#2A1C0E', textAlign: 'center', boundVar: 'courseTitle' } },
+        // Top-right coin chip (reuse menu layout)
+        { id: 'select.coinChip', label: 'Coin chip', kind: 'button', action: '',
+          defaults: { x: -154, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Coin icon',  background: 'ui-coin-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'select.gemChip',  label: 'Gem chip', kind: 'button', action: '',
+          defaults: { x: -54, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Gem icon',  background: 'ui-gem-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'gems', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'select.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
+          defaults: { x: -14, y: 14, w: 32, h: 32,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          toggleStateKey: 'soundMuted',
+          seedChildren: [
+            { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'on',  kind: 'empty', label: 'on',  x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound on icon',  background: 'ui-sound-on',  x: 4, y: 4, w: 24, h: 24 }] },
+            { suffix: 'off', kind: 'empty', label: 'off', x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound off icon', background: 'ui-sound-off', x: 4, y: 4, w: 24, h: 24 }] }
+          ]
+        },
+        // 18 hole instances referencing the holeCircle template.
+        // Positions mirror selectFlagPos() (3 rows×6, S-curve, W=680).
+        // margin=58, usableW=564, colStep=112.8, startY=140, rowStep=95
+        // row0 L→R: x=58,171,284,397,510,622; row1 R→L; row2 L→R
+        // Wiggle (sin(i*1.31)*6) omitted for editor (editor positions are stable).
+        ...(() => {
+          const holes = [];
+          const perRow = 6, margin = 58, usableW = 680 - margin * 2, colStep = usableW / (perRow - 1);
+          const startY = 140, rowStep = 95;
+          for (let i = 0; i < 18; i++) {
+            const row = Math.floor(i / perRow);
+            const col = i % perRow;
+            const effCol = (row % 2 === 0) ? col : (perRow - 1 - col);
+            const x = margin + effCol * colStep;
+            const y = startY + row * rowStep;
+            holes.push({
+              id: `select.hole${i + 1}`,
+              label: `Hole ${i + 1}`,
+              kind: 'button',
+              template: 'holeCircle',
+              templateData: { levelNum: i + 1 },
+              action: `level:${i}`,
+              defaults: {
+                x: x - 34,   // center the 68-wide tile
+                y: y - 21,   // center the 42-high tile
+                w: 68, h: 42,
+                anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 }
+              }
+            });
+          }
+          return holes;
+        })()
+      ]
+    },
     {
       id: 'play', label: 'In-Game HUD',
       bg: 'play',
       elements: [
         { id: 'play.back',     label: 'Back / Editor', kind: 'button', action: 'goto:select',
-          defaults: { x: -70, y: 72, w: 58, h: 24,
+          defaults: { x: -70, y: 110, w: 58, h: 24,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Back bg', background: 'ui-button-paper', x: 0, y: 0, w: 58, h: 24 },
@@ -441,7 +633,7 @@
           ]
         },
         { id: 'play.restart',  label: 'Restart', kind: 'button', action: 'level:restart',
-          defaults: { x: -134, y: 72, w: 60, h: 24,
+          defaults: { x: -134, y: 110, w: 60, h: 24,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Restart bg', background: 'ui-button-paper', x: 0, y: 0, w: 60, h: 24 },
@@ -449,7 +641,7 @@
           ]
         },
         { id: 'play.unstuck',  label: 'Unstuck', kind: 'button', action: 'level:unstuck',
-          defaults: { x: -210, y: 72, w: 72, h: 24,
+          defaults: { x: -210, y: 110, w: 72, h: 24,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Unstuck bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 72, h: 24 },
@@ -469,7 +661,7 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 7;
+  const SEED_SCHEMA_VERSION = 9; // §P12§ cluster y=72→110 to clear shots card
   // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
   // version bump. v5: menu buttons + chips + sound now use anchor system;
   // stale absolute coords would misplace them on wide viewports.
@@ -635,6 +827,32 @@
           }
           store[cid] = child;
           changed = true;
+        }
+      }
+      // §D19_P13§ Seed template-referenced elements (holes 1-18 etc.).
+      if (screen.templates) {
+        for (const el of screen.elements) {
+          if (!el.template || !screen.templates[el.template]) continue;
+          const tmpl = screen.templates[el.template];
+          if (!store[el.id]) {
+            store[el.id] = { kind: tmpl.kind || 'button', action: el.action || '', _template: el.template };
+            changed = true;
+          }
+          for (const sc of (tmpl.seedChildren || [])) {
+            const cid = el.id + '.' + sc.suffix;
+            if (store[cid]) continue;
+            const child = { kind: sc.kind, parentId: el.id, label: sc.label,
+                            x: Number(sc.x) || 0, y: Number(sc.y) || 0,
+                            w: Number(sc.w) || 0, h: Number(sc.h) || 0 };
+            if (sc.kind === 'image') child.background = sc.background;
+            else if (sc.kind === 'text') {
+              if (sc.fontSize) child.fontSize = sc.fontSize;
+              if (sc.color) child.color = sc.color;
+              if (sc.boundVar) child.boundVar = sc.boundVar;
+            }
+            store[cid] = child;
+            changed = true;
+          }
         }
       }
     }
@@ -921,9 +1139,10 @@
     try {
       const iframe = document.getElementById('ui-preview-iframe');
       if (!iframe) return;
-      const next = screenId === 'play'
-        ? './?editorSync=1&course=1&level=1'
-        : './?editorSync=1&menuOnly=1';
+      const next = screenId === 'play'    ? './?editorSync=1&course=1&level=1'
+              : screenId === 'complete' ? './?editorSync=1&course=1&level=1&forceScreen=complete'
+              : screenId === 'select'   ? './?editorSync=1&course=1&forceScreen=select'
+              : './?editorSync=1&menuOnly=1';
       const cur = (iframe.getAttribute('src') || '').split('#')[0];
       if (cur === next) return;
       iframe.setAttribute('src', next);
@@ -1401,6 +1620,29 @@
     });
     // Clear after one render so animation doesn't replay on next re-render.
     _lastExpandedId = null;
+
+    // §D19_P13§ Templates panel — shown below tree when screen has templates.
+    const tplContainer = document.getElementById('el-templates');
+    if (tplContainer) {
+      const scr = getScreen();
+      if (scr.templates && Object.keys(scr.templates).length > 0) {
+        tplContainer.style.display = '';
+        tplContainer.innerHTML = '<div class="tpl-header">Templates</div>';
+        for (const [tname, tmpl] of Object.entries(scr.templates)) {
+          const instanceCount = scr.elements.filter(e => e.template === tname).length;
+          const row = document.createElement('div');
+          row.className = 'tpl-row' + (selectedElementId === '__tpl__' + tname ? ' active' : '');
+          row.innerHTML = `<span class="tpl-name">${tmpl.label || tname}</span><span class="tpl-count">Used by ${instanceCount} instances</span>`;
+          row.addEventListener('click', () => {
+            selectedElementId = '__tpl__' + tname;
+            renderElementList(); renderProps();
+          });
+          tplContainer.appendChild(row);
+        }
+      } else {
+        tplContainer.style.display = 'none';
+      }
+    }
   }
 
   // §D19_P0§ Render parent breadcrumb in the inspector.
