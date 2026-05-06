@@ -380,9 +380,10 @@
           ]
         },
         // Right-top anchor: x = -(distance of right edge from right boundary).
-        // coinChip legacy right edge = 438+92 = 530 = W-150, so x=-150.
+        // §D19_P11§ coinChip right=W-154 gives 8px gap to gemChip left (W-146).
+        // Math: right edge = W+x (anchor=1,pivot=1); x=-154 → right=W-154.
         { id: 'menu.coinChip',    label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -150, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -390,9 +391,10 @@
             { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
           ]
         },
-        // gemChip legacy right edge = 536+92 = 628 = W-52, so x=-52.
+        // §D19_P11§ gemChip right=W-54 gives 8px gap to soundToggle left (W-46).
+        // Math: right=W+x (anchor=1,pivot=1); x=-54 → right=W-54.
         { id: 'menu.gemChip',     label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -52, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -467,7 +469,7 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 6;
+  const SEED_SCHEMA_VERSION = 7;
   // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
   // version bump. v5: menu buttons + chips + sound now use anchor system;
   // stale absolute coords would misplace them on wide viewports.
