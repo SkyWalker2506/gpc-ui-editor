@@ -650,6 +650,154 @@
           ]
         }
       ]
+    },
+    // §P21§ --- courses screen ---
+    {
+      id: 'courses', label: 'Courses',
+      bg: 'courses',
+      elements: [
+        { id: 'courses.coinChip', label: 'Coin chip', kind: 'button', action: '',
+          defaults: { x: -154, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Coin icon',  background: 'ui-coin-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'courses.gemChip', label: 'Gem chip', kind: 'button', action: '',
+          defaults: { x: -54, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Gem icon',  background: 'ui-gem-icon',        x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'gems', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'courses.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
+          defaults: { x: -14, y: 14, w: 32, h: 32,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          toggleStateKey: 'soundMuted',
+          seedChildren: [
+            { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'on',  kind: 'empty', label: 'on',  x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound on icon',  background: 'ui-sound-on',  x: 4, y: 4, w: 24, h: 24 }] },
+            { suffix: 'off', kind: 'empty', label: 'off', x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound off icon', background: 'ui-sound-off', x: 4, y: 4, w: 24, h: 24 }] }
+          ]
+        }
+      ]
+    },
+    // §P21§ --- upgrades screen ---
+    {
+      id: 'upgrades', label: 'Upgrades',
+      bg: 'upgrades',
+      elements: [
+        { id: 'upgrades.coinChip', label: 'Coin chip', kind: 'button', action: '',
+          defaults: { x: -154, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Coin icon',  background: 'ui-coin-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'upgrades.gemChip', label: 'Gem chip', kind: 'button', action: '',
+          defaults: { x: -54, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Gem icon',  background: 'ui-gem-icon',        x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'gems', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'upgrades.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
+          defaults: { x: -14, y: 14, w: 32, h: 32,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          toggleStateKey: 'soundMuted',
+          seedChildren: [
+            { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'on',  kind: 'empty', label: 'on',  x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound on icon',  background: 'ui-sound-on',  x: 4, y: 4, w: 24, h: 24 }] },
+            { suffix: 'off', kind: 'empty', label: 'off', x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound off icon', background: 'ui-sound-off', x: 4, y: 4, w: 24, h: 24 }] }
+          ]
+        }
+      ]
+    },
+    // §P21§ --- shop screen ---
+    {
+      id: 'shop', label: 'Shop',
+      bg: 'shop',
+      elements: [
+        { id: 'shop.coinChip', label: 'Coin chip', kind: 'button', action: '',
+          defaults: { x: -154, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Coin icon',  background: 'ui-coin-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'shop.gemChip', label: 'Gem chip', kind: 'button', action: '',
+          defaults: { x: -54, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Gem icon',  background: 'ui-gem-icon',        x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'gems', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'shop.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
+          defaults: { x: -14, y: 14, w: 32, h: 32,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          toggleStateKey: 'soundMuted',
+          seedChildren: [
+            { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'on',  kind: 'empty', label: 'on',  x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound on icon',  background: 'ui-sound-on',  x: 4, y: 4, w: 24, h: 24 }] },
+            { suffix: 'off', kind: 'empty', label: 'off', x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound off icon', background: 'ui-sound-off', x: 4, y: 4, w: 24, h: 24 }] }
+          ]
+        }
+      ]
+    },
+    // §P21§ --- failed screen ---
+    {
+      id: 'failed', label: 'Failed',
+      bg: 'failed',
+      elements: [
+        { id: 'failed.coinChip', label: 'Coin chip', kind: 'button', action: '',
+          defaults: { x: -154, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Coin icon',  background: 'ui-coin-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'failed.gemChip', label: 'Gem chip', kind: 'button', action: '',
+          defaults: { x: -54, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          seedChildren: [
+            { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
+            { suffix: 'icon', kind: 'image', label: 'Gem icon',  background: 'ui-gem-icon',        x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0', boundVar: 'gems', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+          ]
+        },
+        { id: 'failed.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
+          defaults: { x: -14, y: 14, w: 32, h: 32,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
+          toggleStateKey: 'soundMuted',
+          seedChildren: [
+            { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
+            { suffix: 'on',  kind: 'empty', label: 'on',  x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound on icon',  background: 'ui-sound-on',  x: 4, y: 4, w: 24, h: 24 }] },
+            { suffix: 'off', kind: 'empty', label: 'off', x: 0, y: 0, w: 32, h: 32,
+              grandchildren: [{ suffix: 'icon', kind: 'image', label: 'Sound off icon', background: 'ui-sound-off', x: 4, y: 4, w: 24, h: 24 }] }
+          ]
+        }
+      ]
     }
   ];
 
@@ -661,7 +809,7 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 10; // §P16§ seed parent defaults for complete/select screens
+  const SEED_SCHEMA_VERSION = 11; // §P21§ courses/upgrades/shop/failed coin+gem+sound chips
   // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
   // version bump. v5: menu buttons + chips + sound now use anchor system;
   // stale absolute coords would misplace them on wide viewports.
@@ -674,7 +822,12 @@
     'menu.coinChip', 'menu.gemChip', 'menu.soundToggle',
     'complete.adBtn', 'complete.menuBtn', 'complete.retryBtn', 'complete.nextBtn',
     'complete.coinReward', 'complete.gemReward',
-    'select.coursesBtn', 'select.coinChip', 'select.gemChip', 'select.soundToggle'
+    'select.coursesBtn', 'select.coinChip', 'select.gemChip', 'select.soundToggle',
+    // §P21§ new composable chips
+    'courses.coinChip', 'courses.gemChip', 'courses.soundToggle',
+    'upgrades.coinChip', 'upgrades.gemChip', 'upgrades.soundToggle',
+    'shop.coinChip', 'shop.gemChip', 'shop.soundToggle',
+    'failed.coinChip', 'failed.gemChip', 'failed.soundToggle'
   ];
 
   function migrateLegacyLeaves() {
