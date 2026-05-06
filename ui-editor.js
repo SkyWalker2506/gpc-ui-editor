@@ -625,7 +625,7 @@
       bg: 'play',
       elements: [
         { id: 'play.back',     label: 'Back / Editor', kind: 'button', action: 'goto:select',
-          defaults: { x: -70, y: 110, w: 58, h: 24,
+          defaults: { x: -170, y: 110, w: 58, h: 24,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Back bg', background: 'ui-button-paper', x: 0, y: 0, w: 58, h: 24 },
@@ -633,7 +633,7 @@
           ]
         },
         { id: 'play.restart',  label: 'Restart', kind: 'button', action: 'level:restart',
-          defaults: { x: -134, y: 110, w: 60, h: 24,
+          defaults: { x: -234, y: 110, w: 60, h: 24,
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Restart bg', background: 'ui-button-paper', x: 0, y: 0, w: 60, h: 24 },
@@ -661,15 +661,20 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 9; // §P12§ cluster y=72→110 to clear shots card
+  const SEED_SCHEMA_VERSION = 10; // §P16§ seed parent defaults for complete/select screens
   // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
   // version bump. v5: menu buttons + chips + sound now use anchor system;
   // stale absolute coords would misplace them on wide viewports.
+  // §P16§ complete.* and select.* parents force-reset so they get re-seeded
+  // with the correct anchorMin/anchorMax/pivot/x/y/w/h from SCREENS defaults.
   const SEED_V3_FORCE_RESET = [
     'play.back', 'play.restart', 'play.unstuck',
     'menu.title', 'menu.previewBall',
     'menu.play', 'menu.upgrades', 'menu.shop',
-    'menu.coinChip', 'menu.gemChip', 'menu.soundToggle'
+    'menu.coinChip', 'menu.gemChip', 'menu.soundToggle',
+    'complete.adBtn', 'complete.menuBtn', 'complete.retryBtn', 'complete.nextBtn',
+    'complete.coinReward', 'complete.gemReward',
+    'select.coursesBtn', 'select.coinChip', 'select.gemChip', 'select.soundToggle'
   ];
 
   function migrateLegacyLeaves() {
@@ -803,12 +808,13 @@
           continue;
         }
         // Non-legacy: ensure parent has kind:'button' and seedChildren exist.
+        // §P16§ Include defaults (anchorMin/Max/pivot/x/y/w/h) in the seeded
+        // parent so game.js applyUiOverride can apply anchor-based positioning
+        // even when the user has not opened this element in the editor.
         if (!parent) {
-          // Don't seed silently — only mark parent as button if user has
-          // touched any of its children. Otherwise leave as default-rendered.
-          // BUT: ensure children exist so the button renders out of the box.
-          // We seed both parent AND children so the editor + game agree.
-          store[el.id] = { kind: 'button', action: el.action || '' };
+          const base = { kind: 'button', action: el.action || '' };
+          if (el.defaults) Object.assign(base, el.defaults);
+          store[el.id] = base;
           changed = true;
         } else if (!parent.kind) {
           store[el.id] = { ...parent, kind: 'button', action: parent.action || el.action || '' };
@@ -3286,8 +3292,7 @@
           page: 'ui',
           actions: {
             onUndo: undo.undo,
-            onRedo: undo.redo,
-            onPlayLive: function () { window.open('index.html?editorSync=1', '_blank'); }
+            onRedo: undo.redo
           }
         });
       }
