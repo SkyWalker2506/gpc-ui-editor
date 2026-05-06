@@ -341,14 +341,20 @@
       id: 'menu', label: 'Main Menu',
       bg: 'menu',
       elements: [
-        // Non-button visuals — kept as legacy for now (title + mascot ball).
-        { id: 'menu.title',       label: 'GOLF! title',   kind: 'leaf', defaults: { x: W/2 - 112, y: 67, w: 224, h: 86 } },
-        { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'leaf', defaults: { x: W/2 - 24,  y: 186, w: 48, h: 56 } },
+        // Non-button visuals — center-top anchored so they stay centered at any W.
+        // x=0 means "center of element aligns with anchor point (W/2)".
+        { id: 'menu.title',       label: 'GOLF! title',   kind: 'leaf',
+          defaults: { x: 0, y: 67, w: 224, h: 86,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } } },
+        { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'leaf',
+          defaults: { x: 0, y: 186, w: 48, h: 56,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } } },
         // Composable buttons — parent is invisible, children render.
         // Centered icon+label group inside each button — matches the legacy
         // drawButton layout (group.startX = btnW/2 - groupW/2, y centered).
         { id: 'menu.play',        label: 'PLAY button',   kind: 'button', action: 'goto:courses',
-          defaults: { x: W/2 - 85, y: 260, w: 170, h: 46 },
+          defaults: { x: 0, y: 260, w: 170, h: 46,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'PLAY bg',   background: 'ui-button-paper', x: 0,  y: 0,  w: 170, h: 46 },
             { suffix: 'icon', kind: 'image', label: 'PLAY icon', background: 'ui-play-icon',    x: 42, y: 9,  w: 28,  h: 28 },
@@ -356,7 +362,8 @@
           ]
         },
         { id: 'menu.upgrades',    label: 'UPGRADES button', kind: 'button', action: 'goto:upgrades',
-          defaults: { x: W/2 - 85, y: 330, w: 170, h: 38 },
+          defaults: { x: 0, y: 330, w: 170, h: 38,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'UPGRADES bg',   background: 'ui-button-paper',  x: 0,  y: 0, w: 170, h: 38 },
             { suffix: 'icon', kind: 'image', label: 'UPGRADES icon', background: 'ui-upgrades-icon', x: 35, y: 8, w: 22,  h: 22 },
@@ -364,22 +371,28 @@
           ]
         },
         { id: 'menu.shop',        label: 'SHOP button', kind: 'button', action: 'goto:shop',
-          defaults: { x: W/2 - 85, y: 380, w: 170, h: 38 },
+          defaults: { x: 0, y: 380, w: 170, h: 38,
+                      anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'SHOP bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 170, h: 38 },
             { suffix: 'icon', kind: 'image', label: 'SHOP icon', background: 'ui-shop-icon',    x: 55, y: 8, w: 22,  h: 22 },
             { suffix: 'text', kind: 'text',  label: 'SHOP',      x: 85, y: 0, w: 85,  h: 38, fontSize: 14, color: '#2A1C0E', textAlign: 'left' }
           ]
         },
+        // Right-top anchor: x = -(distance of right edge from right boundary).
+        // coinChip legacy right edge = 438+92 = 530 = W-150, so x=-150.
         { id: 'menu.coinChip',    label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: W - 242, y: 14, w: 92, h: 38 },
+          defaults: { x: -150, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
             { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 38, y: 0, w: 46, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
           ]
         },
+        // gemChip legacy right edge = 536+92 = 628 = W-52, so x=-52.
         { id: 'menu.gemChip',     label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: W - 144, y: 14, w: 92, h: 38 },
+          defaults: { x: -52, y: 14, w: 92, h: 38,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
             { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 38, y: 0, w: 46, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
@@ -390,8 +403,10 @@
         // mute/unmute visual: ui-sound-on under .on, ui-sound-off under .off.
         // The .on/.off entries themselves are kind:'empty' (transform-only)
         // and host one image child each.
+        // soundToggle legacy right edge = 634+32 = 666 = W-14, so x=-14.
         { id: 'menu.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: W - 46, y: 14, w: 32, h: 32 },
+          defaults: { x: -14, y: 14, w: 32, h: 32,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
             { suffix: 'bg',  kind: 'image', label: 'Sound bg', background: 'ui-button-paper', x: 0, y: 0, w: 32, h: 32 },
@@ -450,11 +465,16 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 4;
-  // §D19_P8§ Top-level button ids whose stored x/y must be force-reset on
-  // version bump (e.g. play HUD switched to top-right anchored coords).
-  // §P7P8§ v4 bump: updated play HUD x offsets (-70/-134/-210) need re-seed.
-  const SEED_V3_FORCE_RESET = ['play.back', 'play.restart', 'play.unstuck'];
+  const SEED_SCHEMA_VERSION = 5;
+  // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
+  // version bump. v5: menu buttons + chips + sound now use anchor system;
+  // stale absolute coords would misplace them on wide viewports.
+  const SEED_V3_FORCE_RESET = [
+    'play.back', 'play.restart', 'play.unstuck',
+    'menu.title', 'menu.previewBall',
+    'menu.play', 'menu.upgrades', 'menu.shop',
+    'menu.coinChip', 'menu.gemChip', 'menu.soundToggle'
+  ];
 
   function migrateLegacyLeaves() {
     let changed = false;
