@@ -386,7 +386,8 @@
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
-            { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 38, y: 0, w: 46, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+            { suffix: 'icon', kind: 'image', label: 'Coin icon',  background: 'ui-coin-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0',          boundVar: 'coins', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
           ]
         },
         // gemChip legacy right edge = 536+92 = 628 = W-52, so x=-52.
@@ -395,7 +396,8 @@
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
-            { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 38, y: 0, w: 46, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
+            { suffix: 'icon', kind: 'image', label: 'Gem icon',  background: 'ui-gem-icon',       x: 8,  y: 9, w: 20, h: 20 },
+            { suffix: 'text', kind: 'text',  label: '0',         boundVar: 'gems', x: 32, y: 0, w: 52, h: 38, fontSize: 16, color: '#2A1C0E', textAlign: 'center' }
           ]
         },
         // §D19_P6§ Migrated from kind:'button' (P5 bg+icon) to kind:'toggle'
@@ -465,7 +467,7 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 5;
+  const SEED_SCHEMA_VERSION = 6;
   // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
   // version bump. v5: menu buttons + chips + sound now use anchor system;
   // stale absolute coords would misplace them on wide viewports.
