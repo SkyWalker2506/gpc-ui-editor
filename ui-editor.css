@@ -48,20 +48,37 @@
   .top-btn.danger { border-color: rgba(239,106,106,0.4); color: #ffb1b1; }
   .shell {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) 320px;
+    /* §P7§ widths are driven by CSS vars set from localStorage; JS sets them
+       on .shell directly via style.gridTemplateColumns so resize persists. */
+    grid-template-columns: var(--panel-left, 240px) minmax(0, 1fr) var(--panel-right, 320px);
     height: calc(100vh - 52px);
     width: 100vw;
     overflow: hidden;
   }
   @media (max-width: 1280px) {
-    .shell { grid-template-columns: 220px minmax(0, 1fr) 300px; }
+    .shell { grid-template-columns: var(--panel-left, 220px) minmax(0, 1fr) var(--panel-right, 300px); }
   }
-  .col { overflow-y: auto; overflow-x: hidden; padding: 12px; height: 100%; min-width: 0; }
+  .col { overflow-y: auto; overflow-x: hidden; padding: 12px; height: 100%; min-width: 0; position: relative; }
   .col select, .col input { max-width: 100%; }
   .col select { text-overflow: ellipsis; }
   .col.left { background: var(--bg); border-right: 1px solid var(--line); }
   .col.center { background: var(--bg-deep); padding: 0; display: flex; align-items: center; justify-content: center; }
   .col.right { background: var(--bg); border-left: 1px solid var(--line); }
+  /* §P7§ Panel resize handles — 4px wide, positioned on the outer edge of each
+     side panel. The handle is a pseudo-sibling absolutely positioned overlay. */
+  .col-resize-handle {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    z-index: 20;
+    background: transparent;
+    transition: background 0.15s;
+  }
+  .col-resize-handle:hover,
+  .col-resize-handle.dragging { background: var(--accent); opacity: 0.5; }
+  .col.left > .col-resize-handle { right: 0; }
+  .col.right > .col-resize-handle { left: 0; }
   .group-title {
     color: var(--accent);
     font: 800 10px Fredoka, sans-serif;
@@ -118,7 +135,7 @@
      Indentation comes from a CSS var the renderer sets per row; chevron is a
      fixed-width slot so leaf and group rows align vertically. */
   .tree-toolbar {
-    display: flex; gap: 4px; margin: 4px 0 6px;
+    display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px;
   }
   .tree-toolbar button {
     background: var(--bg-soft);
@@ -167,6 +184,13 @@
   }
   .el-item .tree-rail.empty::before { display: none; }
   .el-item.descendant-of-selected { background: rgba(192,138,255,0.07); }
+  /* §P7§ Unity-style slide-in animation when a collapsed node is expanded.
+     Applied to immediate children of the expanded row via JS (tree-slide class). */
+  @keyframes treeSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .el-item.tree-slide { animation: treeSlideIn 140ms ease-out both; }
   .el-item .kind-ico {
     width: 14px; flex: 0 0 14px;
     color: var(--ink-dim);

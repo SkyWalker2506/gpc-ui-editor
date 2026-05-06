@@ -414,21 +414,24 @@
       bg: 'play',
       elements: [
         { id: 'play.back',     label: 'Back / Editor', kind: 'button', action: 'goto:select',
-          defaults: { x: W - 70, y: 72, w: 58, h: 24 },
+          defaults: { x: -70, y: 72, w: 58, h: 24,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Back bg', background: 'ui-button-paper', x: 0, y: 0, w: 58, h: 24 },
             { suffix: 'text', kind: 'text',  label: 'Back',    x: 0, y: 0, w: 58, h: 24, fontSize: 11, color: '#2A1C0E' }
           ]
         },
         { id: 'play.restart',  label: 'Restart', kind: 'button', action: 'level:restart',
-          defaults: { x: W - 134, y: 72, w: 60, h: 24 },
+          defaults: { x: -134, y: 72, w: 60, h: 24,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Restart bg', background: 'ui-button-paper', x: 0, y: 0, w: 60, h: 24 },
             { suffix: 'text', kind: 'text',  label: 'Restart',    x: 0, y: 0, w: 60, h: 24, fontSize: 11, color: '#2A1C0E' }
           ]
         },
         { id: 'play.unstuck',  label: 'Unstuck', kind: 'button', action: 'level:unstuck',
-          defaults: { x: W - 210, y: 72, w: 72, h: 24 },
+          defaults: { x: -210, y: 72, w: 72, h: 24,
+                      anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Unstuck bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 72, h: 24 },
             { suffix: 'icon', kind: 'image', label: 'Unstuck icon', background: 'ui-unstuck-icon', x: 4,  y: 4, w: 16, h: 16 },
@@ -447,7 +450,11 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 2;
+  const SEED_SCHEMA_VERSION = 4;
+  // §D19_P8§ Top-level button ids whose stored x/y must be force-reset on
+  // version bump (e.g. play HUD switched to top-right anchored coords).
+  // §P7P8§ v4 bump: updated play HUD x offsets (-70/-134/-210) need re-seed.
+  const SEED_V3_FORCE_RESET = ['play.back', 'play.restart', 'play.unstuck'];
 
   function migrateLegacyLeaves() {
     let changed = false;
@@ -473,6 +480,13 @@
             }
           }
         }
+      }
+      // §D19_P8§ Drop top-level stored entries whose schema changed shape
+      // (e.g. play HUD now uses anchored coords). Children were already
+      // dropped above by suffix; now nuke the parents so SCREENS defaults
+      // win on next read.
+      for (const tid of SEED_V3_FORCE_RESET) {
+        if (store[tid]) { delete store[tid]; changed = true; }
       }
       store._uiSeedV = SEED_SCHEMA_VERSION;
       changed = true;
@@ -899,17 +913,32 @@
   // SCREENS at all. Below: helpers that bridge SCREENS' static elements with
   // the dynamic group nodes.
   const TREE_COLLAPSE_KEY = 'gpc_ui_tree_collapsed';
+  const TREE_COLLAPSE_INIT_KEY = 'gpc_ui_tree_collapsed_inited';
   let _collapsedNodes = (function () {
     try {
       const raw = localStorage.getItem(TREE_COLLAPSE_KEY);
-      const obj = raw ? JSON.parse(raw) : {};
-      return (obj && typeof obj === 'object') ? obj : {};
+      const obj = raw ? JSON.parse(raw) : null;
+      // §P7§ First-ever load: no persisted state yet — default ALL parent nodes
+      // to collapsed so the tree opens clean. User can expand what they need.
+      // We detect "never initialised" by absence of the init sentinel key.
+      if (obj && typeof obj === 'object') return obj;
+      // Either null/corrupt or brand-new session — return empty; boot() will
+      // seed defaults after the store is built.
+      return {};
     } catch (_) { return {}; }
   })();
   function isCollapsed(id) { return !!_collapsedNodes[id]; }
+  // §P7§ Track which node was just expanded so renderElementList() can apply
+  // slide-in animation to its immediate children.
+  let _lastExpandedId = null;
   function toggleCollapsed(id) {
-    if (_collapsedNodes[id]) delete _collapsedNodes[id];
-    else _collapsedNodes[id] = 1;
+    if (_collapsedNodes[id]) {
+      delete _collapsedNodes[id];
+      _lastExpandedId = id; // expanding — animate children
+    } else {
+      _collapsedNodes[id] = 1;
+      _lastExpandedId = null;
+    }
     try { localStorage.setItem(TREE_COLLAPSE_KEY, JSON.stringify(_collapsedNodes)); } catch (_) {}
   }
 
@@ -1201,7 +1230,7 @@
         }
       }
     }
-    function renderNode(node, depth, ancestorLastFlags) {
+    function renderNode(node, depth, ancestorLastFlags, slideIn) {
       const el = node.el;
       const kindDef = NODE_KIND_DEFAULTS[el.kind] || null;
       const isGroup    = el.kind === 'group';
@@ -1225,7 +1254,8 @@
         + (isText   ? ' is-text'   : '')
         + (isToggle ? ' is-toggle' : '')
         + (isEmpty  ? ' is-empty'  : '')
-        + (descendantSet.has(el.id) ? ' descendant-of-selected' : '');
+        + (descendantSet.has(el.id) ? ' descendant-of-selected' : '')
+        + (slideIn ? ' tree-slide' : '');
       item.dataset.nodeId = el.id;
       item.draggable = true;
       const badges = scopes.map((s) => {
@@ -1333,16 +1363,20 @@
       });
       root.appendChild(item);
       if (!collapsed) {
+        // §P7§ Apply slide-in to direct children when their parent was just expanded.
+        const parentJustExpanded = (el.id === _lastExpandedId);
         node.children.forEach((c, i) => {
           const isLastSib = (i === node.children.length - 1);
-          renderNode(c, depth + 1, ancestorLastFlags.concat([isLastSib]));
+          renderNode(c, depth + 1, ancestorLastFlags.concat([isLastSib]), parentJustExpanded);
         });
       }
     }
     tree.forEach((n, i) => {
       const isLast = (i === tree.length - 1);
-      renderNode(n, 0, []);
+      renderNode(n, 0, [], false);
     });
+    // Clear after one render so animation doesn't replay on next re-render.
+    _lastExpandedId = null;
   }
 
   // §D19_P0§ Render parent breadcrumb in the inspector.
@@ -2832,6 +2866,99 @@
     renderLayersPanel();
   }
 
+  // §P7§ Seed all parent-capable nodes as collapsed on first ever load.
+  // "First ever load" = no gpc_ui_tree_collapsed_inited key in localStorage.
+  // Persisted state from prior sessions wins; this only fires once per browser.
+  function _seedInitialCollapse() {
+    try {
+      if (localStorage.getItem(TREE_COLLAPSE_INIT_KEY)) return; // already inited
+      // Collapse all SCREENS parents (buttons/toggles) and dynamic-kind nodes
+      // that accept children.
+      for (const screen of SCREENS) {
+        for (const el of screen.elements) {
+          if (el.kind === 'button' || el.kind === 'toggle' || el.kind === 'group' || el.kind === 'empty') {
+            _collapsedNodes[el.id] = 1;
+          }
+        }
+      }
+      localStorage.setItem(TREE_COLLAPSE_KEY, JSON.stringify(_collapsedNodes));
+      localStorage.setItem(TREE_COLLAPSE_INIT_KEY, '1');
+    } catch (_) {}
+  }
+
+  // §P7§ Panel resize — drag handles on right edge of .col.left and left
+  // edge of .col.right. Widths persisted to localStorage.
+  const PANEL_WIDTHS_KEY = 'gpc_ui_editor_panel_widths';
+  const PANEL_LEFT_MIN = 180, PANEL_LEFT_MAX = 480;
+  const PANEL_RIGHT_MIN = 240, PANEL_RIGHT_MAX = 600;
+  function _loadPanelWidths() {
+    try {
+      const raw = localStorage.getItem(PANEL_WIDTHS_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object') return obj;
+      }
+    } catch (_) {}
+    return {};
+  }
+  function _savePanelWidths(left, right) {
+    try { localStorage.setItem(PANEL_WIDTHS_KEY, JSON.stringify({ left, right })); } catch (_) {}
+  }
+  function _applyPanelWidths(left, right) {
+    const shell = document.querySelector('.shell');
+    if (!shell) return;
+    shell.style.gridTemplateColumns = `${left}px minmax(0, 1fr) ${right}px`;
+  }
+  function initPanelResize() {
+    const saved = _loadPanelWidths();
+    let leftW  = Math.max(PANEL_LEFT_MIN,  Math.min(PANEL_LEFT_MAX,  Number(saved.left)  || 240));
+    let rightW = Math.max(PANEL_RIGHT_MIN, Math.min(PANEL_RIGHT_MAX, Number(saved.right) || 320));
+    _applyPanelWidths(leftW, rightW);
+
+    const leftCol  = document.querySelector('.col.left');
+    const rightCol = document.querySelector('.col.right');
+    if (!leftCol || !rightCol) return;
+
+    function _makeHandle(col, side) {
+      const h = document.createElement('div');
+      h.className = 'col-resize-handle';
+      col.appendChild(h);
+      let startX = 0, startW = 0, dragging = false;
+      h.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        dragging = true;
+        startX = ev.clientX;
+        startW = side === 'left' ? leftW : rightW;
+        h.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        function onMove(mev) {
+          if (!dragging) return;
+          const delta = mev.clientX - startX;
+          if (side === 'left') {
+            leftW = Math.max(PANEL_LEFT_MIN, Math.min(PANEL_LEFT_MAX, startW + delta));
+          } else {
+            rightW = Math.max(PANEL_RIGHT_MIN, Math.min(PANEL_RIGHT_MAX, startW - delta));
+          }
+          _applyPanelWidths(leftW, rightW);
+        }
+        function onUp() {
+          dragging = false;
+          h.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          _savePanelWidths(leftW, rightW);
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+    _makeHandle(leftCol, 'left');
+    _makeHandle(rightCol, 'right');
+  }
+
   // ----- Boot -----
   document.addEventListener('DOMContentLoaded', async () => {
     if (window.GPC_ASSETS) {
@@ -2843,6 +2970,8 @@
         renderPreview();
       });
     }
+    _seedInitialCollapse();
+    initPanelResize();
     renderScreenTabs();
     renderElementList();
     renderProps();
