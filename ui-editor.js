@@ -3204,7 +3204,8 @@
     });
 
     // Play button — open last-selected level (same logic as the other editors)
-    document.getElementById('btn-play-game').addEventListener('click', () => {
+    const _playBtn = document.getElementById('btn-play-game');
+    if (_playBtn) _playBtn.addEventListener('click', () => {
       let target = null;
       try {
         const raw = localStorage.getItem('gpc_editor_v1');
