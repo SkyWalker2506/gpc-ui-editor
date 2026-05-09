@@ -1975,6 +1975,8 @@
     applyParentLayoutLockUI();
     // §D19_P4§ Kind-aware inspector sections — hide irrelevant Style controls.
     applyKindAwareInspector();
+    // §D19_P14§ Anchor + Pivot + Text Alignment.
+    renderAnchorSection();
     // §D19_P5§ Add the button-only Action input + text-only Bound Variable picker.
     renderD19P5Section();
   }
@@ -2071,6 +2073,243 @@
         renderPreview();
       });
     }
+  }
+
+  // §D19_P14§ Anchor presets + Pivot + Text Alignment sections.
+  function renderAnchorSection() {
+    const node = document.getElementById('anchor-section');
+    if (!node) return;
+    const el = getElement(selectedElementId);
+    if (!el) { node.style.display = 'none'; node.innerHTML = ''; _removeTextAlignSection(); return; }
+
+    const gOvr = getOverride(el.id, '') || {};
+    const cOvr = scopeCourseId ? (getOverride(el.id, scopeCourseId) || {}) : {};
+    const merged = { ...gOvr, ...cOvr };
+    const defEl = el.defaults || {};
+    const anchorMin = merged.anchorMin != null ? merged.anchorMin : (defEl.anchorMin || { x: 0, y: 0 });
+    const anchorMax = merged.anchorMax != null ? merged.anchorMax : (defEl.anchorMax || { x: 0, y: 0 });
+    const pivot     = merged.pivot     != null ? merged.pivot     : (defEl.pivot     || { x: 0.5, y: 1.0 });
+
+    // 9-point presets: [label, anchorMin, anchorMax, pivotX, pivotY]
+    const PRESETS = [
+      ['TL', {x:0,  y:0  }, {x:0,  y:0  }, 0,   0  ],
+      ['TC', {x:.5, y:0  }, {x:.5, y:0  }, 0.5, 0  ],
+      ['TR', {x:1,  y:0  }, {x:1,  y:0  }, 1,   0  ],
+      ['ML', {x:0,  y:.5 }, {x:0,  y:.5 }, 0,   0.5],
+      ['MC', {x:.5, y:.5 }, {x:.5, y:.5 }, 0.5, 0.5],
+      ['MR', {x:1,  y:.5 }, {x:1,  y:.5 }, 1,   0.5],
+      ['BL', {x:0,  y:1  }, {x:0,  y:1  }, 0,   1  ],
+      ['BC', {x:.5, y:1  }, {x:.5, y:1  }, 0.5, 1  ],
+      ['BR', {x:1,  y:1  }, {x:1,  y:1  }, 1,   1  ]
+    ];
+    const STRETCH = [
+      ['H-Stretch', {x:0, y:.5}, {x:1, y:.5}],
+      ['V-Stretch', {x:.5,y:0 }, {x:.5,y:1 }],
+      ['Full',      {x:0, y:0 }, {x:1, y:1 }]
+    ];
+    function _eqPt(a, b) { return a && b && a.x === b.x && a.y === b.y; }
+    function _matchAnchor() {
+      for (const [id,mn,mx] of PRESETS) {
+        if (_eqPt(mn, anchorMin) && _eqPt(mx, anchorMax)) return id;
+      }
+      return null;
+    }
+    function _matchStretch() {
+      for (const [id,mn,mx] of STRETCH) {
+        if (_eqPt(mn, anchorMin) && _eqPt(mx, anchorMax)) return id;
+      }
+      return null;
+    }
+    function _matchPivot() {
+      for (const [id,,, px, py] of PRESETS) {
+        if (px === pivot.x && py === pivot.y) return id;
+      }
+      return null;
+    }
+    const activeAnchor  = _matchAnchor();
+    const activeStretch = activeAnchor ? null : _matchStretch();
+    const activePivot   = _matchPivot();
+
+    const ORDER = [
+      ['TL',1,1],['TC',1,2],['TR',1,3],
+      ['ML',2,1],['MC',2,2],['MR',2,3],
+      ['BL',3,1],['BC',3,2],['BR',3,3]
+    ];
+    const anchorGrid = ORDER.map(([id,r,c]) =>
+      `<button type="button" class="ap-btn${id===activeAnchor?' active':''}" data-ap-preset="${id}" title="${id}" style="grid-row:${r};grid-column:${c}"><span class="ap-dot"></span></button>`
+    ).join('');
+    const stretchRow = STRETCH.map(([id]) =>
+      `<button type="button" class="ap-stretch-btn${id===activeStretch?' active':''}" data-ap-stretch="${id}">${id}</button>`
+    ).join('');
+    const pivotGrid = ORDER.map(([id,r,c]) =>
+      `<button type="button" class="ap-btn${id===activePivot?' active':''}" data-pv-preset="${id}" title="${id}" style="grid-row:${r};grid-column:${c}"><span class="ap-dot"></span></button>`
+    ).join('');
+
+    const advKey = 'gpc_ui_anchor_adv_' + (el.id || '');
+    let advOpen = false;
+    try { advOpen = localStorage.getItem(advKey) === '1'; } catch (_) {}
+    const advBody = advOpen ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:5px">
+        <div class="field-row"><label style="font-size:10px">Min X</label><div class="row-input-wrap"><input type="number" id="ap-min-x" step="0.01" min="0" max="1" style="font-size:11px" value="${anchorMin.x}"/></div></div>
+        <div class="field-row"><label style="font-size:10px">Min Y</label><div class="row-input-wrap"><input type="number" id="ap-min-y" step="0.01" min="0" max="1" style="font-size:11px" value="${anchorMin.y}"/></div></div>
+        <div class="field-row"><label style="font-size:10px">Max X</label><div class="row-input-wrap"><input type="number" id="ap-max-x" step="0.01" min="0" max="1" style="font-size:11px" value="${anchorMax.x}"/></div></div>
+        <div class="field-row"><label style="font-size:10px">Max Y</label><div class="row-input-wrap"><input type="number" id="ap-max-y" step="0.01" min="0" max="1" style="font-size:11px" value="${anchorMax.y}"/></div></div>
+        <div class="field-row"><label style="font-size:10px">Pivot X</label><div class="row-input-wrap"><input type="number" id="ap-pv-x" step="0.01" min="0" max="1" style="font-size:11px" value="${pivot.x}"/></div></div>
+        <div class="field-row"><label style="font-size:10px">Pivot Y</label><div class="row-input-wrap"><input type="number" id="ap-pv-y" step="0.01" min="0" max="1" style="font-size:11px" value="${pivot.y}"/></div></div>
+      </div>` : '';
+
+    node.style.display = '';
+    node.innerHTML = `
+      <div class="group-title" title="Anchor = which corner of the parent this element sticks to. Pivot = element's own origin point.">Anchor &amp; Pivot</div>
+      <div class="ap-two-col">
+        <div class="ap-subsection">
+          <div class="ap-label">Anchor</div>
+          <div class="ap-grid" id="ap-anchor-grid">${anchorGrid}</div>
+          <div class="ap-stretch-row">${stretchRow}</div>
+        </div>
+        <div class="ap-subsection">
+          <div class="ap-label">Pivot</div>
+          <div class="ap-grid" id="ap-pivot-grid">${pivotGrid}</div>
+          <button type="button" class="ic-reset" id="ap-pivot-reset" title="Reset pivot to default" style="margin-top:5px;font-size:10px;width:100%">↺ Reset</button>
+        </div>
+      </div>
+      <div class="ap-advanced">
+        <button type="button" class="ap-advanced-toggle" id="ap-adv-toggle">${advOpen?'▾':'▸'} Manual values</button>
+        ${advBody}
+      </div>
+    `;
+
+    // Wire anchor preset buttons
+    node.querySelectorAll('[data-ap-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const found = PRESETS.find(p => p[0] === btn.dataset.apPreset);
+        if (!found) return;
+        patchOverride(selectedElementId, scopeCourseId, {
+          anchorMin: { ...found[1] }, anchorMax: { ...found[2] },
+          pivot: { x: found[3], y: found[4] }
+        });
+        renderProps(); renderPreview();
+      });
+    });
+    // Wire stretch preset buttons
+    node.querySelectorAll('[data-ap-stretch]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const found = STRETCH.find(s => s[0] === btn.dataset.apStretch);
+        if (!found) return;
+        patchOverride(selectedElementId, scopeCourseId, {
+          anchorMin: { ...found[1] }, anchorMax: { ...found[2] }
+        });
+        renderProps(); renderPreview();
+      });
+    });
+    // Wire pivot preset buttons
+    node.querySelectorAll('[data-pv-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const found = PRESETS.find(p => p[0] === btn.dataset.pvPreset);
+        if (!found) return;
+        patchOverride(selectedElementId, scopeCourseId, {
+          pivot: { x: found[3], y: found[4] }
+        });
+        renderProps(); renderPreview();
+      });
+    });
+    // Reset pivot
+    const pvReset = node.querySelector('#ap-pivot-reset');
+    if (pvReset) pvReset.addEventListener('click', () => {
+      const k = keyFor(selectedElementId, scopeCourseId);
+      const next = { ...(store[k] || {}) };
+      delete next.pivot;
+      if (Object.keys(next).length) store[k] = next; else delete store[k];
+      markDirty(); saveStore();
+      renderProps(); renderPreview();
+    });
+    // Advanced toggle
+    const advToggle = node.querySelector('#ap-adv-toggle');
+    if (advToggle) advToggle.addEventListener('click', () => {
+      try { localStorage.setItem(advKey, advOpen ? '0' : '1'); } catch (_) {}
+      renderAnchorSection();
+    });
+    // Manual inputs (change events)
+    function _clamp01(v) { return Math.min(1, Math.max(0, v)); }
+    function _readManual() {
+      const mnX = node.querySelector('#ap-min-x'); const mnY = node.querySelector('#ap-min-y');
+      const mxX = node.querySelector('#ap-max-x'); const mxY = node.querySelector('#ap-max-y');
+      const pvX = node.querySelector('#ap-pv-x');  const pvY = node.querySelector('#ap-pv-y');
+      const patch = {};
+      if (mnX && mnY && mxX && mxY) {
+        const vals = [mnX.value, mnY.value, mxX.value, mxY.value].map(Number);
+        if (vals.every(isFinite)) {
+          patch.anchorMin = { x: _clamp01(vals[0]), y: _clamp01(vals[1]) };
+          patch.anchorMax = { x: _clamp01(vals[2]), y: _clamp01(vals[3]) };
+        }
+      }
+      if (pvX && pvY) {
+        const px = Number(pvX.value), py = Number(pvY.value);
+        if (isFinite(px) && isFinite(py)) patch.pivot = { x: _clamp01(px), y: _clamp01(py) };
+      }
+      if (Object.keys(patch).length) { patchOverride(selectedElementId, scopeCourseId, patch); renderPreview(); }
+    }
+    [node.querySelector('#ap-min-x'), node.querySelector('#ap-min-y'),
+     node.querySelector('#ap-max-x'), node.querySelector('#ap-max-y'),
+     node.querySelector('#ap-pv-x'),  node.querySelector('#ap-pv-y')
+    ].forEach(inp => { if (inp) inp.addEventListener('change', _readManual); });
+
+    // Text alignment (kind=text only)
+    _renderTextAlignSection(el, merged);
+  }
+
+  function _removeTextAlignSection() {
+    const s = document.getElementById('d19-textalign-section');
+    if (s) s.remove();
+  }
+
+  // Inject H + V text alignment into Typography <details> when kind=text.
+  function _renderTextAlignSection(el, merged) {
+    _removeTextAlignSection();
+    if (!el || (el.kind || 'leaf') !== 'text') return;
+    const typoFold = document.getElementById('legacy-typography-fold');
+    if (!typoFold) return;
+    const discBody = typoFold.querySelector('.disclosure-body');
+    if (!discBody) return;
+
+    const defEl = el.defaults || {};
+    const curH = merged.textAlign    || defEl.textAlign    || 'left';
+    const curV = merged.verticalAlign || defEl.verticalAlign || 'middle';
+
+    const H_OPT = [['left','≡ Left'],['center','⌷ Center'],['right','≡ Right']];
+    const V_OPT = [['top','⌃ Top'],['middle','⊕ Mid'],['bottom','⌄ Bot']];
+    const hBtns = H_OPT.map(([v,lbl]) =>
+      `<button type="button" class="align-btn${curH===v?' active':''}" data-h-align="${v}">${lbl}</button>`
+    ).join('');
+    const vBtns = V_OPT.map(([v,lbl]) =>
+      `<button type="button" class="align-btn${curV===v?' active':''}" data-v-align="${v}">${lbl}</button>`
+    ).join('');
+
+    const sec = document.createElement('div');
+    sec.id = 'd19-textalign-section';
+    sec.innerHTML = `
+      <div class="field-row" style="margin-top:5px">
+        <label style="font-size:11px">H Align</label>
+        <div class="align-row">${hBtns}</div>
+      </div>
+      <div class="field-row">
+        <label style="font-size:11px">V Align</label>
+        <div class="align-row">${vBtns}</div>
+      </div>`;
+    discBody.appendChild(sec);
+
+    sec.querySelectorAll('[data-h-align]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        patchOverride(selectedElementId, scopeCourseId, { textAlign: btn.dataset.hAlign });
+        renderProps(); renderPreview();
+      });
+    });
+    sec.querySelectorAll('[data-v-align]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        patchOverride(selectedElementId, scopeCourseId, { verticalAlign: btn.dataset.vAlign });
+        renderProps(); renderPreview();
+      });
+    });
   }
 
   // §D19_P4§ Show/hide Style sub-rows based on the selected node's kind:
@@ -3204,7 +3443,8 @@
     });
 
     // Play button — open last-selected level (same logic as the other editors)
-    document.getElementById('btn-play-game').addEventListener('click', () => {
+    const _btnPlay = document.getElementById('btn-play-game') || document.getElementById('btn-play-game-disabled');
+    if (_btnPlay) _btnPlay.addEventListener('click', () => {
       let target = null;
       try {
         const raw = localStorage.getItem('gpc_editor_v1');
