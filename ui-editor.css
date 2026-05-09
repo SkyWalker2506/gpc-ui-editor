@@ -22,6 +22,10 @@
     color: var(--ink);
     background: var(--bg-deep);
     overflow: hidden;
+    /* §D19_SCROLL§ flex column so .shell always fills the remaining vertical
+       space below topbar + meta-strip regardless of their actual heights. */
+    display: flex;
+    flex-direction: column;
   }
   .topbar {
     display: flex; align-items: center; gap: 12px;
@@ -51,14 +55,20 @@
     /* §P7§ widths are driven by CSS vars set from localStorage; JS sets them
        on .shell directly via style.gridTemplateColumns so resize persists. */
     grid-template-columns: var(--panel-left, 240px) minmax(0, 1fr) var(--panel-right, 320px);
-    height: calc(100vh - 52px);
+    /* §D19_SCROLL§ flex:1 + min-height:0 replaces the old fixed calc(100vh-52px)
+       so the shell always fills exactly the space below topbar+meta-strip,
+       regardless of how tall those elements actually are after EditorShell mounts. */
+    flex: 1;
+    min-height: 0;
     width: 100vw;
     overflow: hidden;
   }
   @media (max-width: 1280px) {
     .shell { grid-template-columns: var(--panel-left, 220px) minmax(0, 1fr) var(--panel-right, 300px); }
   }
-  .col { overflow-y: auto; overflow-x: hidden; padding: 12px; height: 100%; min-width: 0; position: relative; }
+  /* §D19_SCROLL§ height:100% works because .shell is now a flex parent;
+     min-height:0 is required for overflow-y:auto to engage inside flex/grid. */
+  .col { overflow-y: auto; overflow-x: hidden; padding: 12px 12px 100px; height: 100%; min-height: 0; min-width: 0; position: relative; }
   .col select, .col input { max-width: 100%; }
   .col select { text-overflow: ellipsis; }
   .col.left { background: var(--bg); border-right: 1px solid var(--line); }
@@ -902,6 +912,112 @@
     margin-right: 6px;
     user-select: none;
   }
+
+  /* §D19_P14§ Anchor + Pivot 9-point grids (Unity-style RectTransform inspector) */
+  .ap-section { margin: 4px 0 8px; }
+  .ap-subsection { margin-bottom: 10px; }
+  .ap-label {
+    font: 700 9px Fredoka, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--ink-dim);
+    margin: 0 0 4px;
+  }
+  /* 3x3 point-anchor grid */
+  .ap-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 26px);
+    grid-template-rows: repeat(3, 26px);
+    gap: 3px;
+    width: fit-content;
+  }
+  .ap-btn {
+    width: 26px; height: 26px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .ap-btn:hover { background: var(--bg-hi); }
+  .ap-btn.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  /* Dot indicator inside each anchor/pivot button */
+  .ap-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ink-dim);
+    transition: background 0.1s;
+  }
+  .ap-btn.active .ap-dot { background: var(--accent); }
+  /* Stretch presets row */
+  .ap-stretch-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+  .ap-stretch-btn {
+    padding: 3px 8px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    font: 600 10px Fredoka, sans-serif;
+    color: var(--ink-dim);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .ap-stretch-btn:hover { background: var(--bg-hi); color: var(--ink); }
+  .ap-stretch-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  /* Advanced manual inputs */
+  .ap-advanced { margin-top: 6px; }
+  .ap-advanced-toggle {
+    font: 600 10px Fredoka, sans-serif;
+    color: var(--ink-dim);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline dotted;
+  }
+  .ap-advanced-toggle:hover { color: var(--ink); }
+  .ap-manual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .ap-manual-grid .field-row { margin: 0; }
+  /* Two-panel side-by-side layout for anchor + pivot */
+  .ap-two-col {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+  /* Text alignment buttons (H + V rows) */
+  .align-row {
+    display: flex;
+    gap: 3px;
+    margin-top: 3px;
+  }
+  .align-btn {
+    flex: 1;
+    padding: 5px 0;
+    background: var(--bg-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    font: 700 12px Fredoka, sans-serif;
+    color: var(--ink-dim);
+    cursor: pointer;
+    text-align: center;
+  }
+  .align-btn:hover { background: var(--bg-hi); color: var(--ink); }
+  .align-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
   /* §D19_P13§ Templates panel */
   .el-templates { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; }
