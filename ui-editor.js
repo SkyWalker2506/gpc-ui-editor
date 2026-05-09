@@ -349,11 +349,19 @@
         { id: 'menu.previewBall', label: 'Mascot ball',   kind: 'image', // §P15-FIX-3§ was 'leaf'; image kind hides label/icon/typo for sprite-only mascot
           defaults: { x: 0, y: 186, w: 48, h: 56,
                       anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } } },
+        // §D19_P11§ Pass-through group containers. anchor=(0,0)/x=0/y=0 → zero
+        // offset added to children, so each child keeps its own anchor-based pos.
+        { id: 'menu.actionsCol', label: 'Actions Col', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
+        { id: 'menu.topBar',     label: 'Top Bar',     kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         // Composable buttons — parent is invisible, children render.
         // Centered icon+label group inside each button — matches the legacy
         // drawButton layout (group.startX = btnW/2 - groupW/2, y centered).
         { id: 'menu.play',        label: 'PLAY button',   kind: 'button', action: 'goto:courses',
-          defaults: { x: 0, y: 260, w: 170, h: 46,
+          defaults: { x: 0, y: 260, w: 170, h: 46, parentId: 'menu.actionsCol',
                       anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'PLAY bg',   background: 'ui-button-paper', x: 0,  y: 0,  w: 170, h: 46 },
@@ -362,7 +370,7 @@
           ]
         },
         { id: 'menu.upgrades',    label: 'UPGRADES button', kind: 'button', action: 'goto:upgrades',
-          defaults: { x: 0, y: 330, w: 170, h: 38,
+          defaults: { x: 0, y: 330, w: 170, h: 38, parentId: 'menu.actionsCol',
                       anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'UPGRADES bg',   background: 'ui-button-paper',  x: 0,  y: 0, w: 170, h: 38 },
@@ -371,7 +379,7 @@
           ]
         },
         { id: 'menu.shop',        label: 'SHOP button', kind: 'button', action: 'goto:shop',
-          defaults: { x: 0, y: 380, w: 170, h: 38,
+          defaults: { x: 0, y: 380, w: 170, h: 38, parentId: 'menu.actionsCol',
                       anchorMin: { x: 0.5, y: 0 }, anchorMax: { x: 0.5, y: 0 }, pivot: { x: 0.5, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'SHOP bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 170, h: 38 },
@@ -383,7 +391,7 @@
         // §D19_P11§ coinChip right=W-154 gives 8px gap to gemChip left (W-146).
         // Math: right edge = W+x (anchor=1,pivot=1); x=-154 → right=W-154.
         { id: 'menu.coinChip',    label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -154, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38, parentId: 'menu.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -394,7 +402,7 @@
         // §D19_P11§ gemChip right=W-54 gives 8px gap to soundToggle left (W-46).
         // Math: right=W+x (anchor=1,pivot=1); x=-54 → right=W-54.
         { id: 'menu.gemChip',     label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -54, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38, parentId: 'menu.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -409,7 +417,7 @@
         // and host one image child each.
         // soundToggle legacy right edge = 634+32 = 666 = W-14, so x=-14.
         { id: 'menu.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: -14, y: 14, w: 32, h: 32,
+          defaults: { x: -14, y: 14, w: 32, h: 32, parentId: 'menu.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
@@ -541,9 +549,13 @@
         }
       },
       elements: [
+        // §D19_P11§ Pass-through group for top bar elements.
+        { id: 'select.topBar', label: 'Top Bar', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         // Top-left "Courses" back button
         { id: 'select.coursesBtn', label: 'Courses back', kind: 'button', action: 'goto:courses',
-          defaults: { x: 12, y: 12, w: 70, h: 32,
+          defaults: { x: 12, y: 12, w: 70, h: 32, parentId: 'select.topBar',
                       anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Courses bg',   background: 'ui-button-paper', x: 0, y: 0, w: 70, h: 32 },
@@ -557,7 +569,7 @@
                       fontSize: 16, color: '#2A1C0E', textAlign: 'center', boundVar: 'courseTitle' } },
         // Top-right coin chip (reuse menu layout)
         { id: 'select.coinChip', label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -154, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38, parentId: 'select.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -566,7 +578,7 @@
           ]
         },
         { id: 'select.gemChip',  label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -54, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38, parentId: 'select.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -575,7 +587,7 @@
           ]
         },
         { id: 'select.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: -14, y: 14, w: 32, h: 32,
+          defaults: { x: -14, y: 14, w: 32, h: 32, parentId: 'select.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
@@ -624,8 +636,12 @@
       id: 'play', label: 'In-Game HUD',
       bg: 'play',
       elements: [
+        // §D19_P11§ Pass-through group — zero offset, children keep own anchors.
+        { id: 'play.topRight', label: 'Top Right', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         { id: 'play.back',     label: 'Back / Editor', kind: 'button', action: 'goto:select',
-          defaults: { x: -170, y: 110, w: 58, h: 24,
+          defaults: { x: -170, y: 110, w: 58, h: 24, parentId: 'play.topRight',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Back bg', background: 'ui-button-paper', x: 0, y: 0, w: 58, h: 24 },
@@ -633,7 +649,7 @@
           ]
         },
         { id: 'play.restart',  label: 'Restart', kind: 'button', action: 'level:restart',
-          defaults: { x: -234, y: 110, w: 60, h: 24,
+          defaults: { x: -234, y: 110, w: 60, h: 24, parentId: 'play.topRight',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Restart bg', background: 'ui-button-paper', x: 0, y: 0, w: 60, h: 24 },
@@ -641,7 +657,7 @@
           ]
         },
         { id: 'play.unstuck',  label: 'Unstuck', kind: 'button', action: 'level:unstuck',
-          defaults: { x: -210, y: 110, w: 72, h: 24,
+          defaults: { x: -210, y: 110, w: 72, h: 24, parentId: 'play.topRight',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Unstuck bg',   background: 'ui-button-paper', x: 0,  y: 0, w: 72, h: 24 },
@@ -656,8 +672,12 @@
       id: 'courses', label: 'Courses',
       bg: 'courses',
       elements: [
+        // §D19_P11§ Pass-through group for top bar.
+        { id: 'courses.topBar', label: 'Top Bar', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         { id: 'courses.coinChip', label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -154, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38, parentId: 'courses.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -666,7 +686,7 @@
           ]
         },
         { id: 'courses.gemChip', label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -54, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38, parentId: 'courses.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -675,7 +695,7 @@
           ]
         },
         { id: 'courses.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: -14, y: 14, w: 32, h: 32,
+          defaults: { x: -14, y: 14, w: 32, h: 32, parentId: 'courses.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
@@ -693,8 +713,12 @@
       id: 'upgrades', label: 'Upgrades',
       bg: 'upgrades',
       elements: [
+        // §D19_P11§ Pass-through group for top bar.
+        { id: 'upgrades.topBar', label: 'Top Bar', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         { id: 'upgrades.coinChip', label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -154, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38, parentId: 'upgrades.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -703,7 +727,7 @@
           ]
         },
         { id: 'upgrades.gemChip', label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -54, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38, parentId: 'upgrades.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -712,7 +736,7 @@
           ]
         },
         { id: 'upgrades.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: -14, y: 14, w: 32, h: 32,
+          defaults: { x: -14, y: 14, w: 32, h: 32, parentId: 'upgrades.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
@@ -730,8 +754,12 @@
       id: 'shop', label: 'Shop',
       bg: 'shop',
       elements: [
+        // §D19_P11§ Pass-through group for top bar.
+        { id: 'shop.topBar', label: 'Top Bar', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         { id: 'shop.coinChip', label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -154, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38, parentId: 'shop.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -740,7 +768,7 @@
           ]
         },
         { id: 'shop.gemChip', label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -54, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38, parentId: 'shop.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -749,7 +777,7 @@
           ]
         },
         { id: 'shop.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: -14, y: 14, w: 32, h: 32,
+          defaults: { x: -14, y: 14, w: 32, h: 32, parentId: 'shop.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
@@ -767,8 +795,12 @@
       id: 'failed', label: 'Failed',
       bg: 'failed',
       elements: [
+        // §D19_P11§ Pass-through group for top bar.
+        { id: 'failed.topBar', label: 'Top Bar', kind: 'empty',
+          defaults: { x: 0, y: 0, w: 0, h: 0,
+                      anchorMin: { x: 0, y: 0 }, anchorMax: { x: 0, y: 0 }, pivot: { x: 0, y: 0 } } },
         { id: 'failed.coinChip', label: 'Coin chip', kind: 'button', action: '',
-          defaults: { x: -154, y: 14, w: 92, h: 38,
+          defaults: { x: -154, y: 14, w: 92, h: 38, parentId: 'failed.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Coin plate', background: 'ui-chip-coin-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -777,7 +809,7 @@
           ]
         },
         { id: 'failed.gemChip', label: 'Gem chip', kind: 'button', action: '',
-          defaults: { x: -54, y: 14, w: 92, h: 38,
+          defaults: { x: -54, y: 14, w: 92, h: 38, parentId: 'failed.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           seedChildren: [
             { suffix: 'bg',   kind: 'image', label: 'Gem plate', background: 'ui-chip-gem-plate', x: 0,  y: 0, w: 92, h: 38 },
@@ -786,7 +818,7 @@
           ]
         },
         { id: 'failed.soundToggle', label: 'Sound toggle', kind: 'toggle', action: 'toggle:sound',
-          defaults: { x: -14, y: 14, w: 32, h: 32,
+          defaults: { x: -14, y: 14, w: 32, h: 32, parentId: 'failed.topBar',
                       anchorMin: { x: 1, y: 0 }, anchorMax: { x: 1, y: 0 }, pivot: { x: 1, y: 0 } },
           toggleStateKey: 'soundMuted',
           seedChildren: [
@@ -809,7 +841,7 @@
   // Bump this when seed positions / sprite keys change so existing stores
   // get re-seeded ONCE (preserving user customizations is sacrificed for
   // correctness — user can re-edit faster than a button can stay broken).
-  const SEED_SCHEMA_VERSION = 11; // §P21§ courses/upgrades/shop/failed coin+gem+sound chips
+  const SEED_SCHEMA_VERSION = 12; // §D19_P11§ all screens grouped: actionsCol/topBar/topRight pass-through containers
   // §D19_P9§ Top-level button ids whose stored x/y must be force-reset on
   // version bump. v5: menu buttons + chips + sound now use anchor system;
   // stale absolute coords would misplace them on wide viewports.
@@ -827,7 +859,15 @@
     'courses.coinChip', 'courses.gemChip', 'courses.soundToggle',
     'upgrades.coinChip', 'upgrades.gemChip', 'upgrades.soundToggle',
     'shop.coinChip', 'shop.gemChip', 'shop.soundToggle',
-    'failed.coinChip', 'failed.gemChip', 'failed.soundToggle'
+    'failed.coinChip', 'failed.gemChip', 'failed.soundToggle',
+    // §D19_P11§ new pass-through group containers
+    'menu.actionsCol', 'menu.topBar',
+    'play.topRight',
+    'select.topBar',
+    'courses.topBar',
+    'upgrades.topBar',
+    'shop.topBar',
+    'failed.topBar'
   ];
 
   function migrateLegacyLeaves() {
@@ -1448,7 +1488,9 @@
     const roots = [];
     nodes.forEach((n) => {
       const ovr = store[n.id] || {};
-      const pid = ovr.parentId;
+      // §D19_P11§ parentId can come from store override OR from SCREENS element
+      // defaults (for seeded group containers like menu.actionsCol). Store wins.
+      const pid = ovr.parentId || (n.defaults && n.defaults.parentId) || null;
       if (pid && byId[pid]) byId[pid].children.push(byId[n.id]);
       else roots.push(byId[n.id]);
     });
