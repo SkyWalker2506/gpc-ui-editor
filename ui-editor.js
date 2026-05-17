@@ -1360,10 +1360,18 @@
     try {
       const iframe = document.getElementById('ui-preview-iframe');
       if (!iframe) return;
-      const next = screenId === 'play'    ? './?editorSync=1&course=1&level=1'
-              : screenId === 'complete' ? './?editorSync=1&course=1&level=1&forceScreen=complete'
-              : screenId === 'select'   ? './?editorSync=1&course=1&forceScreen=select'
-              : './?editorSync=1&menuOnly=1';
+      // §SWAP_IFRAME_PARAMS_FIX§ Every screen must keep the editor-preview
+      // flags `uiPreview=1` + `hideOverlay=1` that the HTML attribute placed
+      // on the initial load. Dropping them caused the iframe to behave like
+      // a real game tab (showed the editor-sync overlay; took the non-preview
+      // render path), so what the user edited was not what the user saw.
+      // game.js consumers: bootParams.get('uiPreview') at game.js:292,
+      // bootParams.get('hideOverlay') at game.js:382.
+      const COMMON = 'editorSync=1&uiPreview=1&hideOverlay=1';
+      const next = screenId === 'play'    ? `./?${COMMON}&course=1&level=1`
+              : screenId === 'complete' ? `./?${COMMON}&course=1&level=1&forceScreen=complete`
+              : screenId === 'select'   ? `./?${COMMON}&course=1&forceScreen=select`
+              : `./?${COMMON}&menuOnly=1`;
       const cur = (iframe.getAttribute('src') || '').split('#')[0];
       if (cur === next) return;
       iframe.setAttribute('src', next);
